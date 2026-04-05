@@ -4,7 +4,7 @@ function round(val) {
   return Math.round(val * 10) / 10;
 }
 
-export default function MealSection({ meal, entries, onRemove, isActive, onToggleAdd, note, onNoteChange, onUpdateEntry }) {
+export default function MealSection({ meal, entries, onRemove, onToggleAdd, note, onNoteChange, onUpdateEntry, trainerComment }) {
   const totalKcal = entries.reduce((s, e) => s + (e.kcal || 0), 0);
   const [editingNote, setEditingNote] = useState(false);
   const [editingEntryId, setEditingEntryId] = useState(null);
@@ -27,13 +27,14 @@ export default function MealSection({ meal, entries, onRemove, isActive, onToggl
         protein: round(entry.protein * factor),
         carbs: round(entry.carbs * factor),
         fat: round(entry.fat * factor),
+        fiber: round((entry.fiber || 0) * factor),
       });
     }
     setEditingEntryId(null);
   }
 
   return (
-    <div className={`meal-section ${isActive ? 'meal-active' : ''}`}>
+    <div className="meal-section">
       <div className="meal-header">
         <span className="meal-name">{meal.label}</span>
         {entries.length > 0 && (
@@ -47,8 +48,8 @@ export default function MealSection({ meal, entries, onRemove, isActive, onToggl
           >
             📝
           </button>
-          <button className={`meal-add-btn ${isActive ? 'active' : ''}`} onClick={onToggleAdd} title="Přidat jídlo">
-            <span>{isActive ? '✓' : '+'}</span>
+          <button className="meal-add-btn" onClick={onToggleAdd} title="Přidat jídlo">
+            <span>+</span>
           </button>
         </div>
       </div>
@@ -89,6 +90,7 @@ export default function MealSection({ meal, entries, onRemove, isActive, onToggl
                 <span className="macro-protein">{entry.protein}g B</span>
                 <span className="macro-carbs">{entry.carbs}g S</span>
                 <span className="macro-fat">{entry.fat}g T</span>
+                <span className="macro-fiber">{entry.fiber || 0}g V</span>
               </div>
               <button
                 className="entry-remove"
@@ -128,6 +130,12 @@ export default function MealSection({ meal, entries, onRemove, isActive, onToggl
           >
             ×
           </button>
+        </div>
+      )}
+      {trainerComment && (
+        <div className="trainer-comment-client">
+          <span className="trainer-comment-client-icon">💬</span>
+          <span className="trainer-comment-client-text">{trainerComment}</span>
         </div>
       )}
     </div>

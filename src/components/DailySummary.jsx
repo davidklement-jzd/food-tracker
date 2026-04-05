@@ -1,15 +1,18 @@
-const GOAL_KCAL = 2000;
-const GOALS = { protein: 100, carbs: 220, fat: 80 };
+const DEFAULT_GOALS = { goal_kcal: 2000, goal_protein: 100, goal_carbs: 220, goal_fat: 80, goal_fiber: 30 };
 
-export default function DailySummary({ entries }) {
+export default function DailySummary({ entries, profile }) {
+  const goals = { ...DEFAULT_GOALS, ...profile };
+  const GOAL_KCAL = goals.goal_kcal;
+  const GOALS = { protein: goals.goal_protein, carbs: goals.goal_carbs, fat: goals.goal_fat, fiber: goals.goal_fiber };
   const totals = entries.reduce(
     (acc, e) => ({
       kcal: acc.kcal + (e.kcal || 0),
       protein: acc.protein + (e.protein || 0),
       carbs: acc.carbs + (e.carbs || 0),
       fat: acc.fat + (e.fat || 0),
+      fiber: acc.fiber + (e.fiber || 0),
     }),
-    { kcal: 0, protein: 0, carbs: 0, fat: 0 }
+    { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
   );
 
   const rawPct = Math.round((totals.kcal / GOAL_KCAL) * 100);
@@ -47,6 +50,7 @@ export default function DailySummary({ entries }) {
         <MacroRow label="Bílkoviny" value={totals.protein} goal={GOALS.protein} color="#e53935" />
         <MacroRow label="Sacharidy" value={totals.carbs} goal={GOALS.carbs} color="#43a047" />
         <MacroRow label="Tuky" value={totals.fat} goal={GOALS.fat} color="#fb8c00" />
+        <MacroRow label="Vláknina" value={totals.fiber} goal={GOALS.fiber} color="#8d6e63" />
       </div>
     </div>
   );

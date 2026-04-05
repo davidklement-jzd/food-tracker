@@ -1,8 +1,13 @@
-import { useState, useRef } from 'react';
-import { useLocalStorage } from './hooks/useLocalStorage';
+import { useState } from 'react';
+import { useAuth } from './contexts/AuthContext';
+import { useSupabaseDiary } from './hooks/useSupabaseDiary';
+import AuthPage from './components/AuthPage';
 import SearchBar from './components/SearchBar';
 import DailySummary from './components/DailySummary';
 import MealSection from './components/MealSection';
+import FoodSearchModal from './components/FoodSearchModal';
+import TrainerDashboard from './components/TrainerDashboard';
+import TrainerClientDiary from './components/TrainerClientDiary';
 import './App.css';
 
 const MEALS = [
@@ -11,113 +16,154 @@ const MEALS = [
   { id: 'lunch', label: 'Oběd' },
   { id: 'snack2', label: 'Odpolední svačina' },
   { id: 'dinner', label: 'Večeře' },
+  { id: 'supplements', label: 'Přepisy' },
 ];
 
+function toDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return toDateStr(new Date());
 }
 
 function formatDate(dateStr) {
-  const d = new Date(dateStr + 'T00:00');
-  const day = d.toLocaleDateString('cs-CZ', { weekday: 'long' });
-  return `${day.charAt(0).toUpperCase() + day.slice(1)}, ${d.toLocaleDateString('cs-CZ', { day: '2-digit', month: '2-digit' })}.`;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const day = date.toLocaleDateString('cs-CZ', { weekday: 'long' });
+  return `${day.charAt(0).toUpperCase() + day.slice(1)}, ${date.toLocaleDateString('cs-CZ', { day: '2-digit', month: '2-digit' })}`;
 }
 
 export default function App() {
-  const [diary, setDiary] = useLocalStorage('food-tracker-diary', {});
+  const { user, profile, loading: authLoading, signOut, isTrainer } = useAuth();
   const [selectedDate, setSelectedDate] = useState(todayStr());
-  const [addingTo, setAddingTo] = useState(null);
-  const searchRef = useRef(null);
+  const [modalMeal, setModalMeal] = useState(null);
+  const [trainerView, setTrainerView] = useState('dashboard'); // 'dashboard' | 'client'
+  const [selectedClient, setSelectedClient] = useState(null);
 
-  const dayData = diary[selectedDate] || {};
+  const {
+    dayData,
+    comments,
+    loading: diaryLoading,
+    addEntry,
+    removeEntry,
+    updateEntry,
+    updateNote,
+  } = useSupabaseDiary(user?.id, selectedDate);
+
+  if (authLoading) {
+    return (
+      <div className="app-loading">
+        <img src="/icon-192.png" alt="Logo" className="loading-logo" />
+        <p>Načítání...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthPage />;
+  }
 
   function getAllEntries() {
     return MEALS.flatMap((m) => dayData[m.id] || []);
   }
 
-  function addEntry(mealId, entry) {
-    setDiary((prev) => {
-      const day = prev[selectedDate] || {};
-      const mealEntries = day[mealId] || [];
-      return {
-        ...prev,
-        [selectedDate]: { ...day, [mealId]: [...mealEntries, entry] },
-      };
-    });
-  }
-
-  function removeEntry(mealId, entryId) {
-    setDiary((prev) => {
-      const day = prev[selectedDate] || {};
-      const mealEntries = (day[mealId] || []).filter((e) => e.id !== entryId);
-      return {
-        ...prev,
-        [selectedDate]: { ...day, [mealId]: mealEntries },
-      };
-    });
-  }
-
-  function updateEntry(mealId, entryId, updatedEntry) {
-    setDiary((prev) => {
-      const day = prev[selectedDate] || {};
-      const mealEntries = (day[mealId] || []).map((e) =>
-        e.id === entryId ? updatedEntry : e
-      );
-      return {
-        ...prev,
-        [selectedDate]: { ...day, [mealId]: mealEntries },
-      };
-    });
-  }
-
-  function updateNote(mealId, text) {
-    setDiary((prev) => {
-      const day = prev[selectedDate] || {};
-      const notes = day._notes || {};
-      return {
-        ...prev,
-        [selectedDate]: { ...day, _notes: { ...notes, [mealId]: text } },
-      };
-    });
-  }
-
   function changeDate(offset) {
-    const d = new Date(selectedDate + 'T00:00');
-    d.setDate(d.getDate() + offset);
-    setSelectedDate(d.toISOString().slice(0, 10));
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const date = new Date(y, m - 1, d + offset);
+    setSelectedDate(toDateStr(date));
   }
 
-  function handleToggleAdd(mealId) {
-    if (addingTo === mealId) {
-      setAddingTo(null);
-    } else {
-      setAddingTo(mealId);
-      // Focus the search input
-      setTimeout(() => searchRef.current?.focus(), 50);
-    }
+  const modalMealObj = MEALS.find((m) => m.id === modalMeal);
+
+  // Trainer view
+  if (isTrainer && trainerView !== 'myDiary') {
+    return (
+      <div className="app">
+        <header className="app-header">
+          <div className="logo">
+            <img src="/icon-192.png" alt="Logo" className="logo-icon-img" />
+            <span className="logo-text">Jak na zdravé tělo</span>
+          </div>
+          <div className="header-nav-tabs">
+            <button
+              className={`nav-tab ${trainerView !== 'myDiary' ? 'active' : ''}`}
+              onClick={() => { setTrainerView('dashboard'); setSelectedClient(null); }}
+            >
+              Klientky
+            </button>
+            <button
+              className={`nav-tab ${trainerView === 'myDiary' ? 'active' : ''}`}
+              onClick={() => setTrainerView('myDiary')}
+            >
+              Můj jídelníček
+            </button>
+          </div>
+          <div className="header-user">
+            <span className="user-name">{profile?.display_name || user.email}</span>
+            <button className="sign-out-btn" onClick={signOut} title="Odhlásit se">
+              Odhlásit
+            </button>
+          </div>
+        </header>
+
+        <div className="main-layout">
+          <main className="content">
+            {trainerView === 'client' && selectedClient ? (
+              <TrainerClientDiary
+                client={selectedClient}
+                onBack={() => { setTrainerView('dashboard'); setSelectedClient(null); }}
+              />
+            ) : (
+              <TrainerDashboard
+                onSelectClient={(client) => {
+                  setSelectedClient(client);
+                  setTrainerView('client');
+                }}
+              />
+            )}
+          </main>
+        </div>
+      </div>
+    );
   }
 
+  // Client view (or trainer's own diary)
   return (
     <div className="app">
       <header className="app-header">
         <div className="logo">
-          <span className="logo-icon">🍽</span>
-          <span className="logo-text">FoodTracker</span>
+          <img src="/icon-192.png" alt="Logo" className="logo-icon-img" />
+          <span className="logo-text">Jak na zdravé tělo</span>
         </div>
-        <SearchBar
-          ref={searchRef}
-          targetMeal={addingTo}
-          meals={MEALS}
-          onMealChange={setAddingTo}
-          onAdd={(entry) => {
-            const mealId = addingTo || 'breakfast';
-            addEntry(mealId, entry);
-          }}
-        />
-        <nav className="header-nav">
-          <a href="#" className="nav-pill active">Jídelníček</a>
-          <a href="#" className="nav-pill">Potraviny</a>
-        </nav>
+        {isTrainer ? (
+          <div className="header-nav-tabs">
+            <button
+              className="nav-tab"
+              onClick={() => setTrainerView('dashboard')}
+            >
+              Klientky
+            </button>
+            <button className="nav-tab active">
+              Můj jídelníček
+            </button>
+          </div>
+        ) : (
+          <SearchBar
+            onAdd={(entry) => {
+              addEntry('breakfast', entry);
+            }}
+          />
+        )}
+        <div className="header-user">
+          <span className="user-name">{profile?.display_name || user.email}</span>
+          <button className="sign-out-btn" onClick={signOut} title="Odhlásit se">
+            Odhlásit
+          </button>
+        </div>
       </header>
 
       <div className="main-layout">
@@ -127,7 +173,6 @@ export default function App() {
               ‹ Předchozí
             </button>
             <div className="date-current">
-              <span className="date-icon">📅</span>
               <span>{formatDate(selectedDate)}</span>
               {selectedDate !== todayStr() && (
                 <button onClick={() => setSelectedDate(todayStr())} className="today-btn">
@@ -144,6 +189,7 @@ export default function App() {
             <div className="diary-meals">
               <div className="intake-label">
                 🍴 Příjem {Math.round(getAllEntries().reduce((s, e) => s + (e.kcal || 0), 0))} kcal
+                {diaryLoading && <span className="diary-loading"> ...</span>}
               </div>
               {MEALS.map((meal) => (
                 <MealSection
@@ -152,18 +198,26 @@ export default function App() {
                   entries={dayData[meal.id] || []}
                   onRemove={(entryId) => removeEntry(meal.id, entryId)}
                   onUpdateEntry={(entryId, updated) => updateEntry(meal.id, entryId, updated)}
-                  isActive={addingTo === meal.id}
-                  onToggleAdd={() => handleToggleAdd(meal.id)}
+                  onToggleAdd={() => setModalMeal(meal.id)}
                   note={(dayData._notes || {})[meal.id] || ''}
                   onNoteChange={(text) => updateNote(meal.id, text)}
+                  trainerComment={comments[meal.id]}
                 />
               ))}
             </div>
 
-            <DailySummary entries={getAllEntries()} />
+            <DailySummary entries={getAllEntries()} profile={profile} />
           </div>
         </main>
       </div>
+
+      {modalMeal && modalMealObj && (
+        <FoodSearchModal
+          mealLabel={modalMealObj.label}
+          onAdd={(entry) => addEntry(modalMeal, entry)}
+          onClose={() => setModalMeal(null)}
+        />
+      )}
     </div>
   );
 }
