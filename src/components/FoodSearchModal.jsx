@@ -50,11 +50,15 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
 
   function handleSelect(product) {
     setSelected(product);
-    const servingGrams = parseServingSize(product.serving_size);
-    setAmount({
-      value: servingGrams ? '1' : '100',
-      unit: servingGrams ? 'serving' : 'g',
-    });
+    const hasPortions = product.portions && product.portions.length > 0;
+    const sGrams = parseServingSize(product.serving_size);
+    if (hasPortions) {
+      setAmount({ value: '1', unit: 'portion_0' });
+    } else if (sGrams) {
+      setAmount({ value: '1', unit: 'serving' });
+    } else {
+      setAmount({ value: '100', unit: 'g' });
+    }
   }
 
   function handleBack() {
@@ -65,19 +69,22 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
   function handleAdd() {
     if (!selected) return;
     const n = selected.nutriments || {};
-    const servingGrams = parseServingSize(selected.serving_size);
-    let gramsTotal;
-    if (amount.unit === 'serving' && servingGrams) {
-      gramsTotal = (parseFloat(amount.value) || 1) * servingGrams;
-    } else {
-      gramsTotal = parseFloat(amount.value) || 100;
-    }
+    const gramsTotal = getComputedGrams();
     const factor = gramsTotal / 100;
 
     let displayAmount;
     if (amount.unit === 'serving' && servingGrams) {
       const count = parseFloat(amount.value) || 1;
       displayAmount = `${count}× porce (${Math.round(gramsTotal)}g)`;
+    } else if (amount.unit.startsWith('portion_')) {
+      const idx = parseInt(amount.unit.split('_')[1]);
+      const p = portions[idx];
+      if (p) {
+        const count = parseFloat(amount.value) || 1;
+        displayAmount = count > 1 ? `${count}× ${p.label} (${Math.round(gramsTotal)}g)` : `${p.label} (${p.grams}g)`;
+      } else {
+        displayAmount = `${Math.round(gramsTotal)}g`;
+      }
     } else {
       displayAmount = `${Math.round(gramsTotal)}g`;
     }
@@ -99,12 +106,18 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
 
   const servingLabel = selected ? formatServingLabel(selected) : null;
   const servingGrams = selected ? parseServingSize(selected.serving_size) : null;
+  const portions = selected?.portions || [];
 
   // Live preview of computed values
   function getComputedGrams() {
     if (!selected) return 0;
     if (amount.unit === 'serving' && servingGrams) {
       return (parseFloat(amount.value) || 1) * servingGrams;
+    }
+    if (amount.unit.startsWith('portion_')) {
+      const idx = parseInt(amount.unit.split('_')[1]);
+      const p = portions[idx];
+      if (p) return (parseFloat(amount.value) || 1) * p.grams;
     }
     return parseFloat(amount.value) || 100;
   }
@@ -200,7 +213,10 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
                 className="modal-amount-unit"
               >
                 <option value="g">g</option>
-                {servingLabel && <option value="serving">{servingLabel}</option>}
+                {portions.map((p, i) => (
+                  <option key={i} value={`portion_${i}`}>{p.label} ({p.grams}g)</option>
+                ))}
+                {servingLabel && !portions.length && <option value="serving">{servingLabel}</option>}
               </select>
             </div>
 

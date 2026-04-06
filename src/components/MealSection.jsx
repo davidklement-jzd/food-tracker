@@ -1,28 +1,58 @@
 import { useState } from 'react';
+import { searchCzechFoods } from '../utils/foodSearch';
 
 function round(val) {
   return Math.round(val * 10) / 10;
+}
+
+function findPortions(entryName) {
+  const results = searchCzechFoods(entryName);
+  const exact = results.find((f) => f.name === entryName);
+  return exact?.portions || null;
 }
 
 export default function MealSection({ meal, entries, onRemove, onToggleAdd, note, onNoteChange, onUpdateEntry, trainerComment }) {
   const totalKcal = entries.reduce((s, e) => s + (e.kcal || 0), 0);
   const [editingNote, setEditingNote] = useState(false);
   const [editingEntryId, setEditingEntryId] = useState(null);
-  const [editGrams, setEditGrams] = useState('');
+  const [editValue, setEditValue] = useState('');
+  const [editUnit, setEditUnit] = useState('g');
+  const [editPortions, setEditPortions] = useState(null);
 
   function startEditAmount(entry) {
     setEditingEntryId(entry.id);
-    setEditGrams(String(entry.grams));
+    setEditValue(String(entry.grams));
+    setEditUnit('g');
+    setEditPortions(findPortions(entry.name));
+  }
+
+  function getEditGrams() {
+    if (editUnit === 'g') return parseFloat(editValue) || 0;
+    if (editUnit.startsWith('portion_') && editPortions) {
+      const idx = parseInt(editUnit.split('_')[1]);
+      const p = editPortions[idx];
+      if (p) return (parseFloat(editValue) || 1) * p.grams;
+    }
+    return parseFloat(editValue) || 0;
   }
 
   function commitEdit(entry) {
-    const newGrams = parseFloat(editGrams);
+    const newGrams = getEditGrams();
     if (newGrams > 0 && newGrams !== entry.grams) {
       const factor = newGrams / entry.grams;
+      let displayAmount;
+      if (editUnit.startsWith('portion_') && editPortions) {
+        const idx = parseInt(editUnit.split('_')[1]);
+        const p = editPortions[idx];
+        const count = parseFloat(editValue) || 1;
+        displayAmount = count > 1 ? `${count}× ${p.label} (${Math.round(newGrams)}g)` : `${p.label} (${p.grams}g)`;
+      } else {
+        displayAmount = `${Math.round(newGrams)}g`;
+      }
       onUpdateEntry(entry.id, {
         ...entry,
         grams: Math.round(newGrams),
-        displayAmount: `${Math.round(newGrams)}g`,
+        displayAmount,
         kcal: round(entry.kcal * factor),
         protein: round(entry.protein * factor),
         carbs: round(entry.carbs * factor),
@@ -31,6 +61,15 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, note
       });
     }
     setEditingEntryId(null);
+  }
+
+  function handleUnitChange(newUnit, entry) {
+    if (newUnit === 'g') {
+      setEditValue(String(entry.grams));
+    } else {
+      setEditValue('1');
+    }
+    setEditUnit(newUnit);
   }
 
   return (
@@ -64,16 +103,25 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, note
                     <input
                       type="number"
                       min="1"
-                      value={editGrams}
-                      onChange={(e) => setEditGrams(e.target.value)}
-                      onBlur={() => commitEdit(entry)}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') commitEdit(entry);
                         if (e.key === 'Escape') setEditingEntryId(null);
                       }}
                       autoFocus
                     />
-                    <span>g</span>
+                    <select
+                      value={editUnit}
+                      onChange={(e) => handleUnitChange(e.target.value, entry)}
+                      className="entry-unit-select"
+                    >
+                      <option value="g">g</option>
+                      {editPortions && editPortions.map((p, i) => (
+                        <option key={i} value={`portion_${i}`}>{p.label} ({p.grams}g)</option>
+                      ))}
+                    </select>
+                    <button className="entry-edit-confirm" onClick={() => commitEdit(entry)}>✓</button>
                   </span>
                 ) : (
                   <span

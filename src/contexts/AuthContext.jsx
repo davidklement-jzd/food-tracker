@@ -62,6 +62,28 @@ export function AuthProvider({ children }) {
     return { data, error };
   }
 
+  async function updateProfile(updates) {
+    if (!session?.user?.id) return { error: { message: 'Nejste přihlášen/a' } };
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', session.user.id)
+      .select()
+      .single();
+    if (!error && data) {
+      setProfile(data);
+      // Log goal_kcal change to history
+      if (updates.goal_kcal != null) {
+        const today = new Date().toISOString().split('T')[0];
+        await supabase.from('goal_history').upsert(
+          { user_id: session.user.id, goal_kcal: updates.goal_kcal, date: today },
+          { onConflict: 'user_id,date' }
+        );
+      }
+    }
+    return { data, error };
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
     setSession(null);
@@ -76,6 +98,7 @@ export function AuthProvider({ children }) {
     signUp,
     signIn,
     signOut,
+    updateProfile,
     isTrainer: profile?.role === 'trainer',
   };
 

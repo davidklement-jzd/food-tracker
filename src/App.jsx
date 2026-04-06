@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { useSupabaseDiary } from './hooks/useSupabaseDiary';
 import AuthPage from './components/AuthPage';
@@ -8,6 +8,12 @@ import MealSection from './components/MealSection';
 import FoodSearchModal from './components/FoodSearchModal';
 import TrainerDashboard from './components/TrainerDashboard';
 import TrainerClientDiary from './components/TrainerClientDiary';
+import SettingsPage from './components/SettingsPage';
+import AnalysisPage from './components/AnalysisPage';
+import WeightTracker from './components/WeightTracker';
+import ActivitySection from './components/ActivitySection';
+import ActivitySearchModal from './components/ActivitySearchModal';
+import { useActivityDiary } from './hooks/useActivityDiary';
 import './App.css';
 
 const MEALS = [
@@ -43,6 +49,20 @@ export default function App() {
   const [modalMeal, setModalMeal] = useState(null);
   const [trainerView, setTrainerView] = useState('dashboard'); // 'dashboard' | 'client'
   const [selectedClient, setSelectedClient] = useState(null);
+  const [currentView, setCurrentView] = useState('diary'); // 'diary' | 'settings'
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!showUserMenu) return;
+    function handleClickOutside(e) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setShowUserMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showUserMenu]);
 
   const {
     dayData,
@@ -53,6 +73,15 @@ export default function App() {
     updateEntry,
     updateNote,
   } = useSupabaseDiary(user?.id, selectedDate);
+
+  const {
+    activities,
+    addActivity,
+    removeActivity,
+    updateActivity,
+  } = useActivityDiary(user?.id, selectedDate);
+
+  const [activityModal, setActivityModal] = useState(false);
 
   if (authLoading) {
     return (
@@ -103,13 +132,32 @@ export default function App() {
             </button>
           </div>
           <div className="header-user">
-            <span className="user-name">{profile?.display_name || user.email}</span>
-            <button className="sign-out-btn" onClick={signOut} title="Odhlásit se">
-              Odhlásit
+            <button className="header-action-btn" onClick={() => setCurrentView('analysis')}>
+              Analýza
             </button>
+            <button className="header-action-btn" onClick={() => setCurrentView('settings')}>
+              Nastavení
+            </button>
+            <div className="user-menu-wrapper" ref={userMenuRef}>
+              <button className="user-name-btn" onClick={() => setShowUserMenu((v) => !v)}>
+                {profile?.display_name || user.email}
+              </button>
+              {showUserMenu && (
+                <div className="user-menu">
+                  <button onClick={() => { signOut(); setShowUserMenu(false); }}>
+                    Odhlásit se
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
+        {currentView === 'settings' ? (
+          <SettingsPage onBack={() => setCurrentView('diary')} />
+        ) : currentView === 'analysis' ? (
+          <AnalysisPage onBack={() => setCurrentView('diary')} />
+        ) : (
         <div className="main-layout">
           <main className="content">
             {trainerView === 'client' && selectedClient ? (
@@ -127,6 +175,7 @@ export default function App() {
             )}
           </main>
         </div>
+        )}
       </div>
     );
   }
@@ -159,18 +208,38 @@ export default function App() {
           />
         )}
         <div className="header-user">
-          <span className="user-name">{profile?.display_name || user.email}</span>
-          <button className="sign-out-btn" onClick={signOut} title="Odhlásit se">
-            Odhlásit
+          <button className="header-action-btn" onClick={() => setCurrentView('analysis')}>
+            Analýza
           </button>
+          <button className="header-action-btn" onClick={() => setCurrentView('settings')}>
+            Nastavení
+          </button>
+          <div className="user-menu-wrapper" ref={userMenuRef}>
+            <button className="user-name-btn" onClick={() => setShowUserMenu((v) => !v)}>
+              {profile?.display_name || user.email}
+            </button>
+            {showUserMenu && (
+              <div className="user-menu">
+                <button onClick={() => { signOut(); setShowUserMenu(false); }}>
+                  Odhlásit se
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
+      {currentView === 'settings' ? (
+        <SettingsPage onBack={() => setCurrentView('diary')} />
+      ) : currentView === 'analysis' ? (
+        <AnalysisPage onBack={() => setCurrentView('diary')} />
+      ) : (
+      <>
       <div className="main-layout">
         <main className="content">
           <div className="date-nav">
             <button onClick={() => changeDate(-1)} className="date-btn">
-              ‹ Předchozí
+              ←
             </button>
             <div className="date-current">
               <span>{formatDate(selectedDate)}</span>
@@ -181,16 +250,17 @@ export default function App() {
               )}
             </div>
             <button onClick={() => changeDate(1)} className="date-btn">
-              Další ›
+              →
             </button>
+          </div>
+
+          <div className="intake-label">
+            🍴 Příjem {Math.round(getAllEntries().reduce((s, e) => s + (e.kcal || 0), 0))} kcal
+            {diaryLoading && <span className="diary-loading"> ...</span>}
           </div>
 
           <div className="diary-content">
             <div className="diary-meals">
-              <div className="intake-label">
-                🍴 Příjem {Math.round(getAllEntries().reduce((s, e) => s + (e.kcal || 0), 0))} kcal
-                {diaryLoading && <span className="diary-loading"> ...</span>}
-              </div>
               {MEALS.map((meal) => (
                 <MealSection
                   key={meal.id}
@@ -204,9 +274,24 @@ export default function App() {
                   trainerComment={comments[meal.id]}
                 />
               ))}
+
+              <div className="activity-label">
+                🏃 Aktivity -{Math.round((activities || []).reduce((s, a) => s + (a.kcal_burned || 0), 0))} kcal
+              </div>
+              <ActivitySection
+                activities={activities || []}
+                onRemove={removeActivity}
+                onUpdate={updateActivity}
+                onToggleAdd={() => setActivityModal(true)}
+                note={(dayData._notes || {})['activities'] || ''}
+                onNoteChange={(text) => updateNote('activities', text)}
+              />
             </div>
 
-            <DailySummary entries={getAllEntries()} profile={profile} />
+            <div className="sidebar">
+              <DailySummary entries={getAllEntries()} profile={profile} />
+              <WeightTracker userId={user.id} profile={profile} selectedDate={selectedDate} />
+            </div>
           </div>
         </main>
       </div>
@@ -217,6 +302,14 @@ export default function App() {
           onAdd={(entry) => addEntry(modalMeal, entry)}
           onClose={() => setModalMeal(null)}
         />
+      )}
+      {activityModal && (
+        <ActivitySearchModal
+          onAdd={addActivity}
+          onClose={() => setActivityModal(false)}
+        />
+      )}
+      </>
       )}
     </div>
   );

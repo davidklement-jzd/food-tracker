@@ -9,7 +9,7 @@ export function useClientList() {
     async function fetch() {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, email, display_name, created_at')
+        .select('*')
         .eq('role', 'client')
         .order('display_name');
 
@@ -224,6 +224,83 @@ export function useClientDiary(clientId, selectedDate) {
     return null;
   }, [dayId, dayData]);
 
+  const ensureDayId = useCallback(async () => {
+    if (dayId) return dayId;
+    const { data } = await supabase
+      .from('diary_days')
+      .upsert({ user_id: clientId, date: selectedDate }, { onConflict: 'user_id,date' })
+      .select('id')
+      .single();
+    if (data) setDayId(data.id);
+    return data?.id;
+  }, [dayId, clientId, selectedDate]);
+
+  const addEntry = useCallback(async (mealId, entry) => {
+    const id = await ensureDayId();
+    if (!id) return;
+    const currentEntries = dayData[mealId] || [];
+    const { data, error } = await supabase
+      .from('diary_entries')
+      .insert({
+        day_id: id, meal_id: mealId,
+        name: entry.name, brand: entry.brand || '',
+        grams: entry.grams, display_amount: entry.displayAmount,
+        kcal: entry.kcal, protein: entry.protein, carbs: entry.carbs,
+        fat: entry.fat, fiber: entry.fiber || 0,
+        sort_order: currentEntries.length,
+      })
+      .select().single();
+    if (!error && data) {
+      setDayData((prev) => ({
+        ...prev,
+        [mealId]: [...(prev[mealId] || []), {
+          id: data.id, name: data.name, brand: data.brand,
+          grams: data.grams, displayAmount: data.display_amount,
+          kcal: data.kcal, protein: data.protein, carbs: data.carbs,
+          fat: data.fat, fiber: data.fiber,
+        }],
+      }));
+    }
+  }, [ensureDayId, dayData]);
+
+  const removeEntry = useCallback(async (mealId, entryId) => {
+    await supabase.from('diary_entries').delete().eq('id', entryId);
+    setDayData((prev) => ({
+      ...prev,
+      [mealId]: (prev[mealId] || []).filter((e) => e.id !== entryId),
+    }));
+  }, []);
+
+  const updateEntry = useCallback(async (mealId, entryId, updated) => {
+    await supabase.from('diary_entries').update({
+      grams: updated.grams, display_amount: updated.displayAmount,
+      kcal: updated.kcal, protein: updated.protein, carbs: updated.carbs,
+      fat: updated.fat, fiber: updated.fiber || 0,
+    }).eq('id', entryId);
+    setDayData((prev) => ({
+      ...prev,
+      [mealId]: (prev[mealId] || []).map((e) => e.id === entryId ? { ...e, ...updated } : e),
+    }));
+  }, []);
+
+  const updateNote = useCallback(async (mealId, text) => {
+    const id = await ensureDayId();
+    if (!id) return;
+    if (text) {
+      await supabase.from('meal_notes').upsert(
+        { day_id: id, meal_id: mealId, note_text: text, updated_at: new Date().toISOString() },
+        { onConflict: 'day_id,meal_id' }
+      );
+    } else {
+      await supabase.from('meal_notes').delete().eq('day_id', id).eq('meal_id', mealId);
+    }
+    setDayData((prev) => {
+      const notes = { ...(prev._notes || {}), [mealId]: text };
+      if (!text) delete notes[mealId];
+      return { ...prev, _notes: Object.keys(notes).length > 0 ? notes : undefined };
+    });
+  }, [ensureDayId]);
+
   return {
     dayData,
     dayId,
@@ -231,5 +308,9 @@ export function useClientDiary(clientId, selectedDate) {
     loading,
     saveComment,
     generateAiComment,
+    addEntry,
+    removeEntry,
+    updateEntry,
+    updateNote,
   };
 }

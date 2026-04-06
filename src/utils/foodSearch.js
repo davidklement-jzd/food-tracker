@@ -20,6 +20,7 @@ export function czechFoodToProduct(f) {
     brands: f.category,
     _isCzech: true,
     serving_size: f.serving,
+    portions: f.portions || null,
     nutriments: {
       'energy-kcal_100g': f.kcal,
       proteins_100g: f.protein,

@@ -3,9 +3,9 @@
 
 const czechFoods = [
   // === MASO ===
-  { id: 'cz-kureci-prsa', name: 'Kuřecí prsa', category: 'Maso', kcal: 165, protein: 31, carbs: 0, fat: 3.6, fiber: 0, serving: null },
-  { id: 'cz-kureci-stehno', name: 'Kuřecí stehno', category: 'Maso', kcal: 177, protein: 24.2, carbs: 0, fat: 8.4, fiber: 0, serving: null },
-  { id: 'cz-veprove-kotleta', name: 'Vepřová kotleta', category: 'Maso', kcal: 242, protein: 27, carbs: 0, fat: 14, fiber: 0, serving: '150g' },
+  { id: 'cz-kureci-prsa', name: 'Kuřecí prsa', category: 'Maso', kcal: 165, protein: 31, carbs: 0, fat: 3.6, fiber: 0, serving: null, portions: [{ label: 'Malá porce', grams: 100 }, { label: 'Porce', grams: 150 }, { label: 'Velká porce', grams: 200 }] },
+  { id: 'cz-kureci-stehno', name: 'Kuřecí stehno', category: 'Maso', kcal: 177, protein: 24.2, carbs: 0, fat: 8.4, fiber: 0, serving: null, portions: [{ label: 'Malé stehno', grams: 100 }, { label: 'Stehno', grams: 150 }, { label: 'Velké stehno', grams: 200 }] },
+  { id: 'cz-veprove-kotleta', name: 'Vepřová kotleta', category: 'Maso', kcal: 242, protein: 27, carbs: 0, fat: 14, fiber: 0, serving: '150g', portions: [{ label: 'Malá kotleta', grams: 120 }, { label: 'Kotleta', grams: 150 }, { label: 'Velká kotleta', grams: 200 }] },
   { id: 'cz-veprove-rameno', name: 'Vepřové rameno', category: 'Maso', kcal: 236, protein: 17, carbs: 0, fat: 18, fiber: 0, serving: null },
   { id: 'cz-hovezi-svickova', name: 'Hovězí svíčková (maso)', category: 'Maso', kcal: 218, protein: 26, carbs: 0, fat: 12, fiber: 0, serving: null },
   { id: 'cz-hovezi-mlete', name: 'Hovězí mleté maso', category: 'Maso', kcal: 254, protein: 17.2, carbs: 0, fat: 20, fiber: 0, serving: null },
@@ -46,7 +46,7 @@ const czechFoods = [
   { id: 'cz-krvavice', name: 'Krvavice (jelito)', category: 'Maso', kcal: 275, protein: 9, carbs: 12, fat: 21, fiber: 0, serving: '120g' },
 
   // === RYBY ===
-  { id: 'cz-losos', name: 'Losos', category: 'Ryby', kcal: 208, protein: 20, carbs: 0, fat: 13, fiber: 0, serving: '125g' },
+  { id: 'cz-losos', name: 'Losos', category: 'Ryby', kcal: 208, protein: 20, carbs: 0, fat: 13, fiber: 0, serving: '125g', portions: [{ label: 'Malý filet', grams: 100 }, { label: 'Filet', grams: 150 }, { label: 'Velký filet', grams: 200 }] },
   { id: 'cz-tunak', name: 'Tuňák v konzervě (ve vlastní šťávě)', category: 'Ryby', kcal: 116, protein: 26, carbs: 0, fat: 1, fiber: 0, serving: '80g' },
   { id: 'cz-treska', name: 'Treska', category: 'Ryby', kcal: 82, protein: 18, carbs: 0, fat: 0.7, fiber: 0, serving: '125g' },
   { id: 'cz-kapr', name: 'Kapr', category: 'Ryby', kcal: 127, protein: 18, carbs: 0, fat: 5.6, fiber: 0, serving: '150g' },
@@ -70,9 +70,9 @@ const czechFoods = [
   // === MLÉČNÉ VÝROBKY ===
   { id: 'cz-mleko-polotucne', name: 'Mléko polotučné 1.5%', category: 'Mléčné výrobky', kcal: 47, protein: 3.3, carbs: 4.8, fat: 1.5, fiber: 0, serving: '250ml' },
   { id: 'cz-mleko-plnotucne', name: 'Mléko plnotučné 3.5%', category: 'Mléčné výrobky', kcal: 64, protein: 3.3, carbs: 4.7, fat: 3.5, fiber: 0, serving: '250ml' },
-  { id: 'cz-jogurt-bily', name: 'Jogurt bílý', category: 'Mléčné výrobky', kcal: 63, protein: 3.5, carbs: 4.7, fat: 3.3, fiber: 0, serving: '150g' },
+  { id: 'cz-jogurt-bily', name: 'Jogurt bílý', category: 'Mléčné výrobky', kcal: 63, protein: 3.5, carbs: 4.7, fat: 3.3, fiber: 0, serving: '150g', portions: [{ label: 'Kelímek', grams: 150 }, { label: 'Velký kelímek', grams: 200 }] },
   { id: 'cz-jogurt-recky', name: 'Řecký jogurt', category: 'Mléčné výrobky', kcal: 97, protein: 9, carbs: 3.6, fat: 5, fiber: 0, serving: '150g' },
-  { id: 'cz-tvaroh-polotucny', name: 'Tvaroh polotučný', category: 'Mléčné výrobky', kcal: 105, protein: 13, carbs: 3.5, fat: 4.5, fiber: 0, serving: '250g' },
+  { id: 'cz-tvaroh-polotucny', name: 'Tvaroh polotučný', category: 'Mléčné výrobky', kcal: 105, protein: 13, carbs: 3.5, fat: 4.5, fiber: 0, serving: '250g', portions: [{ label: 'Půl balení', grams: 125 }, { label: 'Balení', grams: 250 }] },
   { id: 'cz-tvaroh-tucny', name: 'Tvaroh tučný', category: 'Mléčné výrobky', kcal: 155, protein: 11, carbs: 3, fat: 11, fiber: 0, serving: '250g' },
   { id: 'cz-cottage', name: 'Cottage cheese', category: 'Mléčné výrobky', kcal: 98, protein: 12, carbs: 3.4, fat: 4.3, fiber: 0, serving: '150g' },
   { id: 'cz-eidam-30', name: 'Eidam 30%', category: 'Mléčné výrobky', kcal: 263, protein: 27, carbs: 0.5, fat: 17, fiber: 0, serving: '30g' },
@@ -108,13 +108,13 @@ const czechFoods = [
   { id: 'cz-cheddar', name: 'Čedar', category: 'Mléčné výrobky', kcal: 403, protein: 25, carbs: 1.3, fat: 33, fiber: 0, serving: '30g' },
 
   // === VEJCE ===
-  { id: 'cz-vejce', name: 'Vejce slepičí', category: 'Vejce', kcal: 155, protein: 13, carbs: 1.1, fat: 11, fiber: 0, serving: '60g' },
+  { id: 'cz-vejce', name: 'Vejce slepičí', category: 'Vejce', kcal: 155, protein: 13, carbs: 1.1, fat: 11, fiber: 0, serving: '60g', portions: [{ label: '1 vejce', grams: 60 }, { label: '2 vejce', grams: 120 }, { label: '3 vejce', grams: 180 }] },
   { id: 'cz-vejce-bilek', name: 'Vaječný bílek', category: 'Vejce', kcal: 52, protein: 11, carbs: 0.7, fat: 0.2, fiber: 0, serving: '33g' },
   { id: 'cz-vejce-zloutek', name: 'Vaječný žloutek', category: 'Vejce', kcal: 322, protein: 16, carbs: 3.6, fat: 27, fiber: 0, serving: '18g' },
   { id: 'cz-vejce-prepelici', name: 'Vejce křepelčí', category: 'Vejce', kcal: 158, protein: 13, carbs: 0.4, fat: 11, fiber: 0, serving: '10g' },
 
   // === PEČIVO ===
-  { id: 'cz-chleb-zitny', name: 'Chléb žitný', category: 'Pečivo', kcal: 230, protein: 6, carbs: 46, fat: 1.2, fiber: 5.8, serving: '60g' },
+  { id: 'cz-chleb-zitny', name: 'Chléb žitný', category: 'Pečivo', kcal: 230, protein: 6, carbs: 46, fat: 1.2, fiber: 5.8, serving: '60g', portions: [{ label: 'Krajíc', grams: 60 }, { label: '2 krajíce', grams: 120 }] },
   { id: 'cz-chleb-celozrnny', name: 'Chléb celozrnný', category: 'Pečivo', kcal: 210, protein: 8, carbs: 40, fat: 2, fiber: 7, serving: '60g' },
   { id: 'cz-rohlik', name: 'Rohlík', category: 'Pečivo', kcal: 280, protein: 8.5, carbs: 54, fat: 3, fiber: 2.5, serving: '43g' },
   { id: 'cz-houska', name: 'Houska', category: 'Pečivo', kcal: 275, protein: 8, carbs: 53, fat: 2.5, fiber: 2.3, serving: '55g' },
@@ -138,7 +138,7 @@ const czechFoods = [
   { id: 'cz-dalamánek', name: 'Dalamánek', category: 'Pečivo', kcal: 275, protein: 8, carbs: 53, fat: 2.5, fiber: 2.2, serving: '50g' },
 
   // === CEREÁLIE ===
-  { id: 'cz-ovesne-vlocky', name: 'Ovesné vločky', category: 'Cereálie', kcal: 372, protein: 13, carbs: 60, fat: 7, fiber: 10, serving: '50g' },
+  { id: 'cz-ovesne-vlocky', name: 'Ovesné vločky', category: 'Cereálie', kcal: 372, protein: 13, carbs: 60, fat: 7, fiber: 10, serving: '50g', portions: [{ label: 'Malá porce', grams: 40 }, { label: 'Porce', grams: 60 }, { label: 'Velká porce', grams: 80 }] },
   { id: 'cz-musli', name: 'Müsli', category: 'Cereálie', kcal: 380, protein: 9, carbs: 64, fat: 8, fiber: 6, serving: '50g' },
   { id: 'cz-corn-flakes', name: 'Corn flakes', category: 'Cereálie', kcal: 357, protein: 7, carbs: 84, fat: 0.9, fiber: 1.2, serving: '30g' },
   { id: 'cz-granola', name: 'Granola', category: 'Cereálie', kcal: 450, protein: 10, carbs: 60, fat: 18, fiber: 5, serving: '50g' },
@@ -150,10 +150,10 @@ const czechFoods = [
   { id: 'cz-coko-musli', name: 'Čokoládové müsli', category: 'Cereálie', kcal: 420, protein: 8, carbs: 68, fat: 13, fiber: 5, serving: '50g' },
 
   // === PŘÍLOHY ===
-  { id: 'cz-ryze-bila', name: 'Rýže bílá (vařená)', category: 'Přílohy', kcal: 130, protein: 2.7, carbs: 28, fat: 0.3, fiber: 0.4, serving: '150g' },
+  { id: 'cz-ryze-bila', name: 'Rýže bílá (vařená)', category: 'Přílohy', kcal: 130, protein: 2.7, carbs: 28, fat: 0.3, fiber: 0.4, serving: '150g', portions: [{ label: 'Malá porce', grams: 120 }, { label: 'Porce', grams: 180 }, { label: 'Velká porce', grams: 250 }] },
   { id: 'cz-ryze-natural', name: 'Rýže natural (vařená)', category: 'Přílohy', kcal: 123, protein: 2.7, carbs: 25.6, fat: 1, fiber: 1.8, serving: '150g' },
   { id: 'cz-testoviny-varene', name: 'Těstoviny (vařené)', category: 'Přílohy', kcal: 131, protein: 5, carbs: 25, fat: 1.1, fiber: 1.8, serving: '200g' },
-  { id: 'cz-brambory', name: 'Brambory vařené', category: 'Přílohy', kcal: 77, protein: 2, carbs: 17, fat: 0.1, fiber: 1.8, serving: '200g' },
+  { id: 'cz-brambory', name: 'Brambory vařené', category: 'Přílohy', kcal: 77, protein: 2, carbs: 17, fat: 0.1, fiber: 1.8, serving: '200g', portions: [{ label: 'Malá porce', grams: 150 }, { label: 'Porce', grams: 200 }, { label: 'Velká porce', grams: 300 }] },
   { id: 'cz-bramborova-kase', name: 'Bramborová kaše', category: 'Přílohy', kcal: 106, protein: 2, carbs: 16, fat: 4, fiber: 1.5, serving: '200g' },
   { id: 'cz-hranolky', name: 'Hranolky', category: 'Přílohy', kcal: 312, protein: 3.4, carbs: 41, fat: 15, fiber: 3.8, serving: '150g' },
   { id: 'cz-kuskus', name: 'Kuskus (vařený)', category: 'Přílohy', kcal: 112, protein: 3.8, carbs: 23, fat: 0.2, fiber: 1.4, serving: '150g' },
@@ -186,8 +186,8 @@ const czechFoods = [
   { id: 'cz-fazole-cervene', name: 'Fazole červené (vařené)', category: 'Luštěniny', kcal: 127, protein: 8.7, carbs: 22, fat: 0.5, fiber: 6.4, serving: '150g' },
 
   // === OVOCE ===
-  { id: 'cz-jablko', name: 'Jablko', category: 'Ovoce', kcal: 52, protein: 0.3, carbs: 14, fat: 0.2, fiber: 2.4, serving: '150g' },
-  { id: 'cz-banan', name: 'Banán', category: 'Ovoce', kcal: 89, protein: 1.1, carbs: 23, fat: 0.3, fiber: 2.6, serving: '120g' },
+  { id: 'cz-jablko', name: 'Jablko', category: 'Ovoce', kcal: 52, protein: 0.3, carbs: 14, fat: 0.2, fiber: 2.4, serving: '150g', portions: [{ label: 'Malé jablko', grams: 120 }, { label: 'Jablko', grams: 180 }, { label: 'Velké jablko', grams: 220 }] },
+  { id: 'cz-banan', name: 'Banán', category: 'Ovoce', kcal: 89, protein: 1.1, carbs: 23, fat: 0.3, fiber: 2.6, serving: '120g', portions: [{ label: 'Malý banán', grams: 90 }, { label: 'Banán', grams: 120 }, { label: 'Velký banán', grams: 150 }] },
   { id: 'cz-pomeranc', name: 'Pomeranč', category: 'Ovoce', kcal: 47, protein: 0.9, carbs: 12, fat: 0.1, fiber: 2.4, serving: '150g' },
   { id: 'cz-hruska', name: 'Hruška', category: 'Ovoce', kcal: 57, protein: 0.4, carbs: 15, fat: 0.1, fiber: 3.1, serving: '150g' },
   { id: 'cz-jahody', name: 'Jahody', category: 'Ovoce', kcal: 33, protein: 0.7, carbs: 8, fat: 0.3, fiber: 2, serving: '150g' },

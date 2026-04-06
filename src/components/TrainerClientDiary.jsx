@@ -1,6 +1,14 @@
 import { useState, useCallback } from 'react';
 import { useClientDiary } from '../hooks/useTrainerData';
+import { useActivityDiary } from '../hooks/useActivityDiary';
 import DailySummary from './DailySummary';
+import MealSection from './MealSection';
+import FoodSearchModal from './FoodSearchModal';
+import ActivitySection from './ActivitySection';
+import ActivitySearchModal from './ActivitySearchModal';
+import WeightTracker from './WeightTracker';
+import SettingsPage from './SettingsPage';
+import AnalysisPage from './AnalysisPage';
 import TrainerComment from './TrainerComment';
 
 const MEALS = [
@@ -30,20 +38,32 @@ function formatDate(dateStr) {
   return `${day.charAt(0).toUpperCase() + day.slice(1)}, ${date.toLocaleDateString('cs-CZ', { day: '2-digit', month: '2-digit' })}`;
 }
 
-function round(val) {
-  return Math.round(val * 10) / 10;
-}
-
 export default function TrainerClientDiary({ client, onBack }) {
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [modalMeal, setModalMeal] = useState(null);
+  const [activityModal, setActivityModal] = useState(false);
+  const [clientView, setClientView] = useState('diary'); // 'diary' | 'settings' | 'analysis'
+  const [clientProfile, setClientProfile] = useState(client);
+
   const {
     dayData,
     comments,
     loading,
     saveComment,
     generateAiComment,
-  } = useClientDiary(client.id, selectedDate);
+    addEntry,
+    removeEntry,
+    updateEntry,
+    updateNote,
+  } = useClientDiary(clientProfile.id, selectedDate);
+
+  const {
+    activities,
+    addActivity,
+    removeActivity,
+    updateActivity,
+  } = useActivityDiary(clientProfile.id, selectedDate);
 
   function changeDate(offset) {
     const [y, m, d] = selectedDate.split('-').map(Number);
@@ -59,10 +79,39 @@ export default function TrainerClientDiary({ client, onBack }) {
     setBulkLoading(true);
     const mealsWithEntries = MEALS.filter((m) => (dayData[m.id] || []).length > 0 && !comments[m.id]);
     for (const meal of mealsWithEntries) {
-      await generateAiComment(meal.id, meal.label, client);
+      await generateAiComment(meal.id, meal.label, clientProfile);
     }
     setBulkLoading(false);
-  }, [dayData, comments, generateAiComment, client]);
+  }, [dayData, comments, generateAiComment, clientProfile]);
+
+  const modalMealObj = MEALS.find((m) => m.id === modalMeal);
+
+  // Settings view for this client
+  if (clientView === 'settings') {
+    return (
+      <div className="trainer-client-diary">
+        <SettingsPage
+          onBack={() => setClientView('diary')}
+          targetUserId={clientProfile.id}
+          targetProfile={clientProfile}
+          onProfileUpdate={(updated) => setClientProfile(updated)}
+        />
+      </div>
+    );
+  }
+
+  // Analysis view for this client
+  if (clientView === 'analysis') {
+    return (
+      <div className="trainer-client-diary">
+        <AnalysisPage
+          onBack={() => setClientView('diary')}
+          targetUserId={clientProfile.id}
+          targetProfile={clientProfile}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="trainer-client-diary">
@@ -71,13 +120,21 @@ export default function TrainerClientDiary({ client, onBack }) {
           ← Zpět
         </button>
         <div className="trainer-client-name">
-          {client.display_name || client.email}
+          {clientProfile.display_name || clientProfile.email}
+        </div>
+        <div className="trainer-client-actions">
+          <button className="header-action-btn" onClick={() => setClientView('analysis')}>
+            Analýza
+          </button>
+          <button className="header-action-btn" onClick={() => setClientView('settings')}>
+            Nastavení
+          </button>
         </div>
       </div>
 
       <div className="date-nav">
         <button onClick={() => changeDate(-1)} className="date-btn">
-          ‹ Předchozí
+          ←
         </button>
         <div className="date-current">
           <span>{formatDate(selectedDate)}</span>
@@ -88,7 +145,7 @@ export default function TrainerClientDiary({ client, onBack }) {
           )}
         </div>
         <button onClick={() => changeDate(1)} className="date-btn">
-          Další ›
+          →
         </button>
       </div>
 
@@ -107,69 +164,67 @@ export default function TrainerClientDiary({ client, onBack }) {
       {loading ? (
         <div className="trainer-loading">Načítání...</div>
       ) : (
-        <div className="diary-content">
-          <div className="diary-meals">
-            <div className="intake-label">
-              🍴 Příjem {Math.round(getAllEntries().reduce((s, e) => s + (e.kcal || 0), 0))} kcal
-            </div>
-            {MEALS.map((meal) => {
-              const entries = dayData[meal.id] || [];
-              const comment = comments[meal.id];
-              const note = (dayData._notes || {})[meal.id];
-              const totalKcal = entries.reduce((s, e) => s + (e.kcal || 0), 0);
-
-              return (
-                <div key={meal.id} className="meal-section">
-                  <div className="meal-header">
-                    <span className="meal-name">{meal.label}</span>
-                    {entries.length > 0 && (
-                      <span className="meal-kcal">{Math.round(totalKcal)} kcal</span>
-                    )}
-                  </div>
-
-                  {entries.length > 0 && (
-                    <div className="meal-entries">
-                      {entries.map((entry) => (
-                        <div key={entry.id} className="meal-entry">
-                          <div className="entry-info">
-                            <span className="entry-name">{entry.name}</span>
-                            <span className="entry-amount">
-                              {entry.displayAmount || `${entry.grams}g`}
-                            </span>
-                          </div>
-                          <div className="entry-macros">
-                            <span className="macro-kcal">{entry.kcal} kcal</span>
-                            <span className="macro-protein">{round(entry.protein)}g B</span>
-                            <span className="macro-carbs">{round(entry.carbs)}g S</span>
-                            <span className="macro-fat">{round(entry.fat)}g T</span>
-                            <span className="macro-fiber">{round(entry.fiber || 0)}g V</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {note && (
-                    <div className="meal-note-preview">
-                      <span>📝 {note}</span>
-                    </div>
-                  )}
-
+        <>
+          <div className="intake-label">
+            🍴 Příjem {Math.round(getAllEntries().reduce((s, e) => s + (e.kcal || 0), 0))} kcal
+          </div>
+          <div className="diary-content">
+            <div className="diary-meals">
+              {MEALS.map((meal) => (
+                <div key={meal.id}>
+                  <MealSection
+                    meal={meal}
+                    entries={dayData[meal.id] || []}
+                    onRemove={(entryId) => removeEntry(meal.id, entryId)}
+                    onUpdateEntry={(entryId, updated) => updateEntry(meal.id, entryId, updated)}
+                    onToggleAdd={() => setModalMeal(meal.id)}
+                    note={(dayData._notes || {})[meal.id] || ''}
+                    onNoteChange={(text) => updateNote(meal.id, text)}
+                  />
                   <TrainerComment
                     mealId={meal.id}
                     mealLabel={meal.label}
-                    comment={comment}
-                    hasEntries={entries.length > 0}
+                    comment={comments[meal.id]}
+                    hasEntries={(dayData[meal.id] || []).length > 0}
                     onSave={(text) => saveComment(meal.id, text)}
-                    onGenerateAi={() => generateAiComment(meal.id, meal.label, client)}
+                    onGenerateAi={() => generateAiComment(meal.id, meal.label, clientProfile)}
                   />
                 </div>
-              );
-            })}
-          </div>
+              ))}
 
-          <DailySummary entries={getAllEntries()} profile={client} />
-        </div>
+              <div className="activity-label">
+                🏃 Aktivity -{Math.round((activities || []).reduce((s, a) => s + (a.kcal_burned || 0), 0))} kcal
+              </div>
+              <ActivitySection
+                activities={activities || []}
+                onRemove={removeActivity}
+                onUpdate={updateActivity}
+                onToggleAdd={() => setActivityModal(true)}
+                note={(dayData._notes || {})['activities'] || ''}
+                onNoteChange={(text) => updateNote('activities', text)}
+              />
+            </div>
+
+            <div className="sidebar">
+              <DailySummary entries={getAllEntries()} profile={clientProfile} />
+              <WeightTracker userId={clientProfile.id} profile={clientProfile} selectedDate={selectedDate} />
+            </div>
+          </div>
+        </>
+      )}
+
+      {modalMeal && modalMealObj && (
+        <FoodSearchModal
+          mealLabel={modalMealObj.label}
+          onAdd={(entry) => addEntry(modalMeal, entry)}
+          onClose={() => setModalMeal(null)}
+        />
+      )}
+      {activityModal && (
+        <ActivitySearchModal
+          onAdd={addActivity}
+          onClose={() => setActivityModal(false)}
+        />
       )}
     </div>
   );
