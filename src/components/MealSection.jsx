@@ -98,10 +98,10 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, note
             <div key={entry.id} className="meal-entry">
               <div className="entry-info">
                 <span className="entry-name">
+                  {entry.name}
                   {entry.created_by && ownerId && entry.created_by !== ownerId && (
                     <img src="/icon-192.png" alt="Trenér" className="trainer-entry-icon" />
                   )}
-                  {entry.name}
                 </span>
                 {editingEntryId === entry.id ? (
                   <span className="entry-amount-edit">
