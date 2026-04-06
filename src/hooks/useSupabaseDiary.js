@@ -76,6 +76,7 @@ export function useSupabaseDiary(userId, selectedDate) {
           carbs: entry.carbs,
           fat: entry.fat,
           fiber: entry.fiber,
+          created_by: entry.created_by,
         });
       }
 
@@ -128,6 +129,7 @@ export function useSupabaseDiary(userId, selectedDate) {
 
     const currentEntries = dayData[mealId] || [];
 
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
     const { data, error } = await supabase
       .from('diary_entries')
       .insert({
@@ -143,6 +145,7 @@ export function useSupabaseDiary(userId, selectedDate) {
         fat: entry.fat,
         fiber: entry.fiber || 0,
         sort_order: currentEntries.length,
+        created_by: currentUser?.id || null,
       })
       .select()
       .single();

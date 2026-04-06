@@ -563,6 +563,14 @@ body {
   text-overflow: ellipsis;
 }
 
+.trainer-entry-icon {
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  margin-right: 4px;
+  opacity: 0.7;
+}
+
 .entry-amount {
   font-size: 12px;
   color: #999;
@@ -1158,8 +1166,33 @@ body {
     text-align: center;
   }
 
+  .meal-entry {
+    flex-wrap: wrap;
+  }
+
+  .entry-info {
+    width: 100%;
+    order: 1;
+  }
+
   .entry-macros {
-    display: none;
+    order: 2;
+    width: 100%;
+    padding: 2px 0 0;
+    gap: 6px;
+    font-size: 11px;
+  }
+
+  .entry-remove {
+    order: 3;
+    position: absolute;
+    right: 16px;
+    top: 10px;
+  }
+
+  .meal-entry {
+    position: relative;
+    padding-right: 36px;
   }
 
   .content {
@@ -1798,7 +1831,8 @@ body {
 .trainer-bulk-actions {
   display: flex;
   justify-content: center;
-  padding: 8px 0;
+  padding: 4px 0;
+  margin: -4px 0 4px;
 }
 
 .trainer-bulk-btn {

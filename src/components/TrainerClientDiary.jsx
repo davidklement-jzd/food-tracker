@@ -180,6 +180,7 @@ export default function TrainerClientDiary({ client, onBack }) {
                     onToggleAdd={() => setModalMeal(meal.id)}
                     note={(dayData._notes || {})[meal.id] || ''}
                     onNoteChange={(text) => updateNote(meal.id, text)}
+                    ownerId={clientProfile.id}
                   />
                   <TrainerComment
                     mealId={meal.id}

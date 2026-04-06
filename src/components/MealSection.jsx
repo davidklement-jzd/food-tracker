@@ -11,7 +11,7 @@ function findPortions(entryName) {
   return exact?.portions || null;
 }
 
-export default function MealSection({ meal, entries, onRemove, onToggleAdd, note, onNoteChange, onUpdateEntry, trainerComment }) {
+export default function MealSection({ meal, entries, onRemove, onToggleAdd, note, onNoteChange, onUpdateEntry, trainerComment, ownerId }) {
   const totalKcal = entries.reduce((s, e) => s + (e.kcal || 0), 0);
   const [editingNote, setEditingNote] = useState(false);
   const [editingEntryId, setEditingEntryId] = useState(null);
@@ -97,7 +97,12 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, note
           {entries.map((entry) => (
             <div key={entry.id} className="meal-entry">
               <div className="entry-info">
-                <span className="entry-name">{entry.name}</span>
+                <span className="entry-name">
+                  {entry.created_by && ownerId && entry.created_by !== ownerId && (
+                    <img src="/icon-192.png" alt="Trenér" className="trainer-entry-icon" />
+                  )}
+                  {entry.name}
+                </span>
                 {editingEntryId === entry.id ? (
                   <span className="entry-amount-edit">
                     <input

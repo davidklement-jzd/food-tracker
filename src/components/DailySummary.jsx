@@ -47,18 +47,19 @@ export default function DailySummary({ entries, profile }) {
       </div>
 
       <div className="summary-macros">
-        <MacroRow label="Bílkoviny" value={totals.protein} goal={GOALS.protein} color="#e53935" />
-        <MacroRow label="Sacharidy" value={totals.carbs} goal={GOALS.carbs} color="#43a047" />
-        <MacroRow label="Tuky" value={totals.fat} goal={GOALS.fat} color="#fb8c00" />
-        <MacroRow label="Vláknina" value={totals.fiber} goal={GOALS.fiber} color="#8d6e63" />
+        <MacroRow label="Bílkoviny" value={totals.protein} goal={GOALS.protein} />
+        <MacroRow label="Sacharidy" value={totals.carbs} goal={GOALS.carbs} />
+        <MacroRow label="Tuky" value={totals.fat} goal={GOALS.fat} />
+        <MacroRow label="Vláknina" value={totals.fiber} goal={GOALS.fiber} />
       </div>
     </div>
   );
 }
 
-function MacroRow({ label, value, goal, color }) {
+function MacroRow({ label, value, goal }) {
   const rawPct = Math.round((value / goal) * 100);
   const barPct = Math.min(rawPct, 100);
+  const color = rawPct > 110 ? '#e53935' : rawPct >= 90 ? '#43a047' : '#fb8c00';
   return (
     <div className="macro-row">
       <div className="macro-row-header">

@@ -272,6 +272,7 @@ export default function App() {
                   note={(dayData._notes || {})[meal.id] || ''}
                   onNoteChange={(text) => updateNote(meal.id, text)}
                   trainerComment={comments[meal.id]}
+                  ownerId={user?.id}
                 />
               ))}
 
