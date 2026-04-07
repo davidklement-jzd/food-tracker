@@ -22,7 +22,7 @@ const MEALS = [
   { id: 'lunch', label: 'Oběd' },
   { id: 'snack2', label: 'Odpolední svačina' },
   { id: 'dinner', label: 'Večeře' },
-  { id: 'supplements', label: 'Přepisy' },
+  { id: 'supplements', label: 'Kalorický dluh' },
 ];
 
 function toDateStr(d) {
