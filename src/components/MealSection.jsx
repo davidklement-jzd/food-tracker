@@ -87,8 +87,10 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, note
           >
             📝
           </button>
-          <button className="meal-add-btn" onClick={onToggleAdd} title="Přidat jídlo">
-            <span>+</span>
+          <button className="meal-add-btn" onClick={onToggleAdd} title="Přidat jídlo" aria-label="Přidat jídlo">
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
           </button>
         </div>
       </div>

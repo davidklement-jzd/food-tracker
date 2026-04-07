@@ -526,9 +526,8 @@ body {
   transition: background 0.2s;
 }
 
-.meal-add-btn > span {
+.meal-add-btn > svg {
   display: block;
-  line-height: 1;
 }
 
 .meal-add-btn:hover {
