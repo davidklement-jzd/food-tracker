@@ -19,6 +19,9 @@ export default function SettingsPage({ onBack, targetUserId, targetProfile, onPr
 
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
   const [initialWeight, setInitialWeight] = useState(profile?.initial_weight ?? '');
+  const [targetWeight, setTargetWeight] = useState(profile?.target_weight ?? '');
+  const [height, setHeight] = useState(profile?.height ?? '');
+  const [age, setAge] = useState(profile?.age ?? '');
   const [goals, setGoals] = useState(() =>
     Object.fromEntries(GOAL_FIELDS.map((f) => [f.key, profile?.[f.key] ?? f.default]))
   );
@@ -34,9 +37,14 @@ export default function SettingsPage({ onBack, targetUserId, targetProfile, onPr
     setSaving(true);
     setMessage(null);
 
+    const newInitialWeight = initialWeight === '' ? null : Number(initialWeight);
+    const wasInitialWeightEmpty = profile?.initial_weight == null;
     const updates = {
       display_name: displayName.trim(),
-      initial_weight: initialWeight === '' ? null : Number(initialWeight),
+      initial_weight: newInitialWeight,
+      target_weight: targetWeight === '' ? null : Number(targetWeight),
+      height: height === '' ? null : Number(height),
+      age: age === '' ? null : Number(age),
     };
     for (const f of GOAL_FIELDS) {
       updates[f.key] = goals[f.key] === '' ? f.default : Number(goals[f.key]);
@@ -66,6 +74,18 @@ export default function SettingsPage({ onBack, targetUserId, targetProfile, onPr
     } else {
       const res = await updateProfile(updates);
       error = res.error;
+    }
+
+    // First-time initial weight: also create today's weight entry so it shows in the chart
+    if (!error && wasInitialWeightEmpty && newInitialWeight != null) {
+      const userId = isEditingOther ? targetUserId : ownProfile?.id;
+      if (userId) {
+        const today = new Date().toISOString().split('T')[0];
+        await supabase.from('weight_entries').upsert(
+          { user_id: userId, weight: newInitialWeight, date: today },
+          { onConflict: 'user_id,date' }
+        );
+      }
     }
 
     setSaving(false);
@@ -112,6 +132,51 @@ export default function SettingsPage({ onBack, targetUserId, targetProfile, onPr
                   onChange={(e) => setInitialWeight(e.target.value === '' ? '' : e.target.value)}
                 />
                 <span className="settings-unit">kg</span>
+              </div>
+            </div>
+            <div className="settings-field">
+              <label htmlFor="targetWeight">Cílová váha</label>
+              <div className="settings-input-with-unit">
+                <input
+                  id="targetWeight"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  style={{ width: '70px' }}
+                  value={targetWeight}
+                  onChange={(e) => setTargetWeight(e.target.value === '' ? '' : e.target.value)}
+                />
+                <span className="settings-unit">kg</span>
+              </div>
+            </div>
+            <div className="settings-field">
+              <label htmlFor="height">Výška</label>
+              <div className="settings-input-with-unit">
+                <input
+                  id="height"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  style={{ width: '70px' }}
+                  value={height}
+                  onChange={(e) => setHeight(e.target.value === '' ? '' : e.target.value)}
+                />
+                <span className="settings-unit">cm</span>
+              </div>
+            </div>
+            <div className="settings-field">
+              <label htmlFor="age">Věk</label>
+              <div className="settings-input-with-unit">
+                <input
+                  id="age"
+                  type="number"
+                  min="0"
+                  step="1"
+                  style={{ width: '70px' }}
+                  value={age}
+                  onChange={(e) => setAge(e.target.value === '' ? '' : e.target.value)}
+                />
+                <span className="settings-unit">let</span>
               </div>
             </div>
           </div>

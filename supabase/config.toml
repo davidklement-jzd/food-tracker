@@ -1,0 +1,4 @@
+project_id = "food-tracker"
+
+[functions.delete-client]
+verify_jwt = false

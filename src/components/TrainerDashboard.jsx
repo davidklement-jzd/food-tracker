@@ -33,11 +33,43 @@ function formatDayLabel(dateStr) {
 }
 
 export default function TrainerDashboard({ onSelectClient }) {
-  const { clients, loading } = useClientList();
+  const { clients, loading, refresh } = useClientList();
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkResult, setBulkResult] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedDates, setSelectedDates] = useState(new Set([getLast7Days()[1]])); // default: včera
+  const [deleteTarget, setDeleteTarget] = useState(null); // client object pending delete
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+
+  function openDelete(client, e) {
+    e.stopPropagation();
+    setDeleteTarget(client);
+    setDeleteError(null);
+  }
+
+  function closeDelete() {
+    if (deleting) return;
+    setDeleteTarget(null);
+    setDeleteError(null);
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const { data, error } = await supabase.functions.invoke('delete-client', {
+      body: { client_id: deleteTarget.id },
+    });
+    if (error || data?.error) {
+      setDeleteError(error?.message || data?.error || 'Chyba při mazání.');
+      setDeleting(false);
+      return;
+    }
+    setDeleting(false);
+    setDeleteTarget(null);
+    await refresh();
+  }
 
   const last7 = getLast7Days();
 
@@ -196,9 +228,41 @@ export default function TrainerDashboard({ onSelectClient }) {
                 </span>
                 <span className="client-email">{client.email}</span>
               </div>
+              <button
+                className="client-delete-btn"
+                onClick={(e) => openDelete(client, e)}
+                title="Smazat klientku"
+              >
+                🗑
+              </button>
               <span className="client-arrow">›</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="delete-modal-overlay" onClick={closeDelete}>
+          <div className="delete-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Smazat klientku</h3>
+            <p>
+              Opravdu chceš trvale smazat účet <strong>{deleteTarget.display_name || deleteTarget.email}</strong>{' '}
+              i veškerá její data? Tato akce je nevratná.
+            </p>
+            {deleteError && <div className="delete-error">{deleteError}</div>}
+            <div className="delete-modal-actions">
+              <button className="delete-cancel-btn" onClick={closeDelete} disabled={deleting}>
+                Ne
+              </button>
+              <button
+                className="delete-confirm-btn"
+                onClick={confirmDelete}
+                disabled={deleting}
+              >
+                {deleting ? 'Mažu...' : 'Ano, smazat'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

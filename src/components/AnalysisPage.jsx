@@ -39,7 +39,7 @@ export default function AnalysisPage({ onBack, targetUserId, targetProfile }) {
   const { calorieHistory, calorieLoading } = useCalorieHistory(userId);
   const { goalHistory } = useGoalHistory(userId);
 
-  const goalWeight = profile?.initial_weight || null;
+  const goalWeight = profile?.target_weight || null;
   const goalKcal = profile?.goal_kcal || 2000;
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 600;
   const xTicksLimit = isMobile ? 6 : 12;

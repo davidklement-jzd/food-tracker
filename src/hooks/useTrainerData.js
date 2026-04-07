@@ -5,25 +5,26 @@ export function useClientList() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetch() {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'client')
-        .order('display_name');
+  const refresh = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'client')
+      .order('display_name');
 
-      if (error) {
-        console.error('Error fetching clients:', error);
-      } else {
-        setClients(data || []);
-      }
-      setLoading(false);
+    if (error) {
+      console.error('Error fetching clients:', error);
+    } else {
+      setClients(data || []);
     }
-    fetch();
+    setLoading(false);
   }, []);
 
-  return { clients, loading };
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { clients, loading, refresh };
 }
 
 export function useClientDiary(clientId, selectedDate) {
@@ -261,6 +262,7 @@ export function useClientDiary(clientId, selectedDate) {
           grams: data.grams, displayAmount: data.display_amount,
           kcal: data.kcal, protein: data.protein, carbs: data.carbs,
           fat: data.fat, fiber: data.fiber,
+          created_by: data.created_by,
         }],
       }));
     }
