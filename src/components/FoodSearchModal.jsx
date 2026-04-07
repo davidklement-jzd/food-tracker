@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { round, searchCzechFoods, czechFoodToProduct, parseServingSize, formatServingLabel } from '../utils/foodSearch';
+import { round, searchSupabaseFoods, supabaseFoodToProduct, parseServingSize, formatServingLabel, portionLabel } from '../utils/foodSearch';
 
 export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
   const [query, setQuery] = useState('');
@@ -21,26 +21,11 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
       return;
     }
 
-    const czResults = searchCzechFoods(query.trim()).map(czechFoodToProduct);
-    if (czResults.length > 0) {
-      setResults(czResults.slice(0, 12));
-    }
-
     timerRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const url = `/api/off/cgi/search.pl?search_terms=${encodeURIComponent(query.trim())}&json=1&page_size=6&fields=id,product_name,brands,nutriments,image_small_url,serving_size,serving_quantity`;
-        const res = await fetch(url);
-        const data = await res.json();
-        const onlineResults = (data.products || []).filter((p) => p.product_name);
-        const czIds = new Set(czResults.map((r) => r.id));
-        const combined = [
-          ...czResults,
-          ...onlineResults.filter((p) => !czIds.has(p.id)),
-        ].slice(0, 12);
-        setResults(combined);
-      } catch {
-        if (czResults.length === 0) setResults([]);
+        const localRows = await searchSupabaseFoods(query.trim(), 15);
+        setResults(localRows.map(supabaseFoodToProduct));
       } finally {
         setLoading(false);
       }
@@ -81,7 +66,7 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
       const p = portions[idx];
       if (p) {
         const count = parseFloat(amount.value) || 1;
-        displayAmount = count > 1 ? `${count}× ${p.label} (${Math.round(gramsTotal)}g)` : `${p.label} (${p.grams}g)`;
+        displayAmount = count > 1 ? `${count}× ${p.label} (${Math.round(gramsTotal)}g)` : portionLabel(p);
       } else {
         displayAmount = `${Math.round(gramsTotal)}g`;
       }
@@ -214,7 +199,7 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
               >
                 <option value="g">g</option>
                 {portions.map((p, i) => (
-                  <option key={i} value={`portion_${i}`}>{p.label} ({p.grams}g)</option>
+                  <option key={i} value={`portion_${i}`}>{portionLabel(p)}</option>
                 ))}
                 {servingLabel && !portions.length && <option value="serving">{servingLabel}</option>}
               </select>

@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { searchCzechFoods } from '../utils/foodSearch';
+import { portionLabel } from '../utils/foodSearch';
 
 function round(val) {
   return Math.round(val * 10) / 10;
 }
 
-function findPortions(entryName) {
-  const results = searchCzechFoods(entryName);
-  const exact = results.find((f) => f.name === entryName);
-  return exact?.portions || null;
+// Předdefinované porce u editace zatím nepoužíváme – uživatel edituje gramy přímo.
+// (Portions z Supabase tabulky se zobrazují jen při přidávání nového jídla v search modalu.)
+function findPortions() {
+  return null;
 }
 
 export default function MealSection({ meal, entries, onRemove, onToggleAdd, note, onNoteChange, onUpdateEntry, trainerComment, ownerId }) {
@@ -45,7 +45,7 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, note
         const idx = parseInt(editUnit.split('_')[1]);
         const p = editPortions[idx];
         const count = parseFloat(editValue) || 1;
-        displayAmount = count > 1 ? `${count}× ${p.label} (${Math.round(newGrams)}g)` : `${p.label} (${p.grams}g)`;
+        displayAmount = count > 1 ? `${count}× ${p.label} (${Math.round(newGrams)}g)` : portionLabel(p);
       } else {
         displayAmount = `${Math.round(newGrams)}g`;
       }
@@ -125,7 +125,7 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, note
                     >
                       <option value="g">g</option>
                       {editPortions && editPortions.map((p, i) => (
-                        <option key={i} value={`portion_${i}`}>{p.label} ({p.grams}g)</option>
+                        <option key={i} value={`portion_${i}`}>{portionLabel(p)}</option>
                       ))}
                     </select>
                     <button className="entry-edit-confirm" onClick={() => commitEdit(entry)}>✓</button>

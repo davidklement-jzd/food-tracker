@@ -41,7 +41,7 @@ export default function AuthPage() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <img src="/icon-192.png" alt="Logo" style={{ width: 64, height: 64, marginBottom: 8 }} />
+        <img src="/icon-192.png" alt="Logo" style={{ width: 160, height: 160, marginBottom: 0, display: 'block', marginLeft: 'auto', marginRight: 'auto', transform: 'translateX(-10px)' }} />
         <h1 className="auth-title">Jak na zdravé tělo</h1>
         <p className="auth-subtitle">
           {isRegister ? 'Vytvořit účet' : 'Přihlášení'}

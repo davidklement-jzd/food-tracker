@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { round, searchCzechFoods, czechFoodToProduct, parseServingSize, formatServingLabel } from '../utils/foodSearch';
+import { round, searchSupabaseFoods, supabaseFoodToProduct, parseServingSize, formatServingLabel } from '../utils/foodSearch';
 
 export default function SearchBar({ onAdd }) {
   const [query, setQuery] = useState('');
@@ -17,28 +17,13 @@ export default function SearchBar({ onAdd }) {
       setOpen(false);
       return;
     }
-    const czResults = searchCzechFoods(query.trim()).map(czechFoodToProduct);
-    if (czResults.length > 0) {
-      setResults(czResults.slice(0, 12));
-      setOpen(true);
-    }
-
     timerRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const url = `/api/off/cgi/search.pl?search_terms=${encodeURIComponent(query.trim())}&json=1&page_size=6&fields=id,product_name,brands,nutriments,image_small_url,serving_size,serving_quantity`;
-        const res = await fetch(url);
-        const data = await res.json();
-        const onlineResults = (data.products || []).filter((p) => p.product_name);
-        const czIds = new Set(czResults.map((r) => r.id));
-        const combined = [
-          ...czResults,
-          ...onlineResults.filter((p) => !czIds.has(p.id)),
-        ].slice(0, 12);
-        setResults(combined);
-        setOpen(true);
-      } catch {
-        if (czResults.length === 0) setResults([]);
+        const localRows = await searchSupabaseFoods(query.trim(), 15);
+        const products = localRows.map(supabaseFoodToProduct);
+        setResults(products);
+        setOpen(products.length > 0);
       } finally {
         setLoading(false);
       }
@@ -140,11 +125,11 @@ export default function SearchBar({ onAdd }) {
 
             return (
               <div key={pid} className="search-result-item">
-                <div className={`result-thumb ${product._isCzech ? 'czech' : ''}`}>
+                <div className={`result-thumb ${product._isLocal ? 'czech' : ''}`}>
                   {product.image_small_url ? (
                     <img src={product.image_small_url} alt="" />
-                  ) : product._isCzech ? (
-                    <div className="thumb-placeholder">🇨🇿</div>
+                  ) : product._isLocal ? (
+                    <div className="thumb-placeholder">🥗</div>
                   ) : (
                     <div className="thumb-placeholder">🍽</div>
                   )}
