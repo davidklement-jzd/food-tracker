@@ -1,41 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SYSTEM_PROMPT } from "../_shared/styleGuide.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-const SYSTEM_PROMPT = `Jsi asistent fitness trenéra Davida Klementa. Píšeš krátké komentáře k jídelníčku klientek.
-
-PRAVIDLA:
-- Maximálně 250 znaků
-- VŽDY vykej (zkuste, přidejte, dejte si, budete, jste)
-- Přátelský, přímý tón jako kamarád
-- Návrhy s "třeba": "třeba přidat tvaroh"
-- Konkrétní pozorování o daném jídle
-
-PRIORITY HODNOCENÍ:
-1. Bílkoviny – cíl splnit denní normu. Variovat zdroje dle kontextu.
-2. Zelenina – v každém hlavním slaném jídle
-3. Kalorická bilance – hodnotit celek za den
-4. Stavba jídla – bílkovina + příloha (nejlépe brambory) + zelenina
-
-CO NEKOMENTOVAT: pitný režim, vlákninu, deficit tuků, přebytek sacharidů
-
-POCHVALY:
-- Brambory: "nejdietnější příloha"
-- Tvarůžky: "jedna z nejefektivnějších surovin"
-- Vajíčka (jen ke slaným jídlům): "skvělý zdroj bílkovin"
-- Vývar: "plné živin a kolagenu, přitom dietní"
-- Luštěniny: zmínit bílkoviny I vlákninu
-
-STYL:
-- "Učebnicové jídlo." / "Správně." / "Celé může být."
-- "Tady ideálně zeleninu přidat."
-- "Stačilo přidat o plátek šunky navíc a kolečko bílkovin by šlo do zelena."
-- Ultra krátké komentáře jsou OK: "Ideální kombinace." / "V pořádku."
-
-Napiš POUZE text komentáře, nic jiného.`;
 
 const MEALS = ["breakfast", "snack1", "lunch", "snack2", "dinner", "supplements"];
 const MEAL_LABELS: Record<string, string> = {
@@ -181,7 +150,7 @@ Napiš komentář k tomuto jídlu (max 250 znaků).`;
             body: JSON.stringify({
               model: "claude-sonnet-4-20250514",
               max_tokens: 150,
-              system: SYSTEM_PROMPT,
+              system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
               messages: [{ role: "user", content: userPrompt }],
             }),
           });
