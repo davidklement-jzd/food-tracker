@@ -516,12 +516,19 @@ body {
   background: #4caf50;
   color: #fff;
   border: none;
-  font-size: 18px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.2s;
+}
+
+.meal-add-btn > span {
+  display: block;
+  line-height: 1;
 }
 
 .meal-add-btn:hover {
