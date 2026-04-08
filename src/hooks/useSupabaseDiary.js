@@ -1,6 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
+// Heuristika pro legacy zápisy bez food_id — když nelze odvodit z foods.is_liquid,
+// zkusíme detekovat tekutinu podle názvu, ať starší entries dostanou ml + porce.
+const LIQUID_NAME_RE = /\b(ml[ée]ko|voda|pivo|birel|radler|le[žz][áa]k|kef[íi]r|smoothie|d[žz]us|n[áa]poj|kakao|[čc]aj|k[áa]va|limon[áa]da|cola|coca|cider|v[íi]no|[šs][ťt][áa]va|koktejl|drink|mo[šs]t|kombucha|latte|cappuccino|espresso|sirup|protein\s*shake|shake)\b/i;
+
+const DEFAULT_LIQUID_PORTIONS = [
+  { label: 'Sklenice (250 ml)', grams: 250 },
+  { label: 'Plechovka (330 ml)', grams: 330 },
+  { label: 'Půllitr (500 ml)', grams: 500 },
+  { label: 'Litr (1000 ml)', grams: 1000 },
+];
+
+function isLikelyLiquid(name) {
+  return LIQUID_NAME_RE.test(name || '');
+}
+
 export function useSupabaseDiary(userId, selectedDate) {
   const [dayData, setDayData] = useState({});
   const [dayId, setDayId] = useState(null);
@@ -65,16 +80,36 @@ export function useSupabaseDiary(userId, selectedDate) {
       const entries = entriesRes.data || [];
       for (const entry of entries) {
         if (!data[entry.meal_id]) data[entry.meal_id] = [];
-        // Odvození unit: preferuj uložený sloupec, jinak `is_liquid` z napojené potraviny
-        const derivedUnit =
-          entry.unit ||
-          (entry.food?.is_liquid ? 'ml' : 'g');
+        // Odvození unit: foods.is_liquid > heuristika podle názvu/značky > uložený sloupec.
+        // Heuristika smí přebít stored 'g' u zjevných tekutin (legacy zápisy + foods, kde
+        // is_liquid není správně nastaveno — viz Birel).
+        const liquidByName =
+          isLikelyLiquid(entry.name) || isLikelyLiquid(entry.brand);
+        const derivedUnit = entry.food?.is_liquid
+          ? 'ml'
+          : liquidByName
+          ? 'ml'
+          : entry.unit || 'g';
+        const derivedPortions =
+          (Array.isArray(entry.food?.portions) && entry.food.portions.length > 0
+            ? entry.food.portions
+            : null) ||
+          (derivedUnit === 'ml' ? DEFAULT_LIQUID_PORTIONS : null);
+        // Stale display_amount: pokud máme ml, ale uloženo je "Ng", regeneruj.
+        let displayAmount = entry.display_amount;
+        if (
+          displayAmount &&
+          derivedUnit === 'ml' &&
+          /^\d+(?:[.,]\d+)?\s*g$/i.test(displayAmount.trim())
+        ) {
+          displayAmount = `${entry.grams}ml`;
+        }
         data[entry.meal_id].push({
           id: entry.id,
           name: entry.name,
           brand: entry.brand,
           grams: entry.grams,
-          displayAmount: entry.display_amount,
+          displayAmount,
           kcal: entry.kcal,
           protein: entry.protein,
           carbs: entry.carbs,
@@ -82,7 +117,7 @@ export function useSupabaseDiary(userId, selectedDate) {
           fiber: entry.fiber,
           unit: derivedUnit,
           food_id: entry.food_id || null,
-          portions: entry.food?.portions || null,
+          portions: derivedPortions,
           created_by: entry.created_by,
         });
       }
