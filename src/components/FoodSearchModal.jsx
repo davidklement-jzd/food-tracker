@@ -110,6 +110,7 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
       fiber: round((n.fiber_100g || 0) * factor),
       food_id: selected.id || null,
       unit: u,
+      portions: portions && portions.length > 0 ? portions : null,
     });
     onClose();
   }
@@ -293,6 +294,7 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
         fiber: per100.fiber !== null ? per100.fiber : 0,
         food_id: inserted.id,
         unit,
+        portions: isLiquid ? liquidPortions : null,
       });
       onClose();
     } catch (e) {

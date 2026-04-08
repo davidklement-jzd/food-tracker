@@ -44,7 +44,7 @@ export function useSupabaseDiary(userId, selectedDate) {
       const [entriesRes, notesRes, commentsRes] = await Promise.all([
         supabase
           .from('diary_entries')
-          .select('*')
+          .select('*, food:foods(is_liquid, portions)')
           .eq('day_id', dayRow.id)
           .order('sort_order', { ascending: true })
           .order('created_at', { ascending: true }),
@@ -65,6 +65,10 @@ export function useSupabaseDiary(userId, selectedDate) {
       const entries = entriesRes.data || [];
       for (const entry of entries) {
         if (!data[entry.meal_id]) data[entry.meal_id] = [];
+        // Odvození unit: preferuj uložený sloupec, jinak `is_liquid` z napojené potraviny
+        const derivedUnit =
+          entry.unit ||
+          (entry.food?.is_liquid ? 'ml' : 'g');
         data[entry.meal_id].push({
           id: entry.id,
           name: entry.name,
@@ -76,8 +80,9 @@ export function useSupabaseDiary(userId, selectedDate) {
           carbs: entry.carbs,
           fat: entry.fat,
           fiber: entry.fiber,
-          unit: entry.unit || 'g',
+          unit: derivedUnit,
           food_id: entry.food_id || null,
+          portions: entry.food?.portions || null,
           created_by: entry.created_by,
         });
       }
@@ -170,8 +175,9 @@ export function useSupabaseDiary(userId, selectedDate) {
       carbs: data.carbs,
       fat: data.fat,
       fiber: data.fiber,
-      unit: data.unit || 'g',
+      unit: data.unit || entry.unit || 'g',
       food_id: data.food_id || null,
+      portions: entry.portions || null,
     };
 
     setDayData((prev) => ({
