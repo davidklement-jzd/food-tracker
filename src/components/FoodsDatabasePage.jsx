@@ -1,0 +1,494 @@
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+
+function round1(v) {
+  if (v == null || !Number.isFinite(Number(v))) return 0;
+  return Math.round(Number(v) * 10) / 10;
+}
+
+const SOURCE_LABEL = {
+  user: 'Uživatelská',
+  manual: 'Ručně',
+  off: 'Open Food Facts',
+  usda: 'USDA',
+};
+
+const STATUS_LABEL = {
+  approved: '✓ schválená',
+  pending: '⏳ čeká',
+  rejected: '✕ zamítnutá',
+};
+
+export default function FoodsDatabasePage({ onBack }) {
+  const { user, isTrainer } = useAuth();
+  const [tab, setTab] = useState(isTrainer ? 'pending' : 'all');
+  const [query, setQuery] = useState('');
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [editing, setEditing] = useState(null);
+
+  const fetchList = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    let q = supabase
+      .from('foods')
+      .select(isTrainer ? '*, creator:profiles!foods_created_by_fkey(display_name, email)' : '*');
+
+    if (tab === 'pending') {
+      q = q.eq('status', 'pending');
+    } else if (tab === 'mine') {
+      q = q.eq('created_by', user.id);
+    }
+    // 'all' → RLS sám propustí approved + own pending (+ trenér vidí všechno)
+
+    const trimmed = query.trim();
+    if (trimmed) {
+      q = q.ilike('title', `%${trimmed}%`);
+    }
+
+    q = q.order('created_at', { ascending: false }).limit(150);
+
+    const { data, error } = await q;
+    if (error) {
+      console.error('Foods list error:', error);
+      setRows([]);
+    } else {
+      setRows(data || []);
+    }
+    setLoading(false);
+  }, [user, tab, query, isTrainer]);
+
+  useEffect(() => {
+    const t = setTimeout(fetchList, query ? 250 : 0);
+    return () => clearTimeout(t);
+  }, [fetchList, query]);
+
+  const tabs = isTrainer
+    ? [
+        { id: 'pending', label: 'Čeká na schválení' },
+        { id: 'all', label: 'Všechny' },
+        { id: 'mine', label: 'Moje přidané' },
+      ]
+    : [
+        { id: 'all', label: 'Všechny' },
+        { id: 'mine', label: 'Moje přidané' },
+      ];
+
+  function openEdit(row) {
+    // Klient může editovat jen svoje pending, trenér cokoliv
+    const canEdit =
+      isTrainer || (row.created_by === user.id && row.status === 'pending');
+    if (!canEdit) return;
+    setEditing(row);
+  }
+
+  async function handleSaved(updatedRow, { propagated }) {
+    setRows((prev) => prev.map((r) => (r.id === updatedRow.id ? updatedRow : r)));
+    setEditing(null);
+    if (tab === 'pending' && updatedRow.status !== 'pending') {
+      // přesunulo se mimo aktuální tab → odstranit z listu
+      setRows((prev) => prev.filter((r) => r.id !== updatedRow.id));
+    }
+  }
+
+  async function handleQuickApprove(row) {
+    if (!isTrainer) return;
+    const { data, error } = await supabase
+      .from('foods')
+      .update({
+        status: 'approved',
+        approved_by: user.id,
+        approved_at: new Date().toISOString(),
+      })
+      .eq('id', row.id)
+      .select()
+      .single();
+    if (error) {
+      alert('Schválení selhalo: ' + error.message);
+      return;
+    }
+    setRows((prev) =>
+      tab === 'pending'
+        ? prev.filter((r) => r.id !== row.id)
+        : prev.map((r) => (r.id === row.id ? data : r))
+    );
+  }
+
+  async function handleDelete(row) {
+    if (!isTrainer) return;
+    if (!confirm(`Smazat „${row.title}" ze sdílené databáze?\n\nZáznamy v jídelníčcích klientek zůstanou zachované.`)) {
+      return;
+    }
+    const { error } = await supabase.from('foods').delete().eq('id', row.id);
+    if (error) {
+      alert('Smazání selhalo: ' + error.message);
+      return;
+    }
+    setRows((prev) => prev.filter((r) => r.id !== row.id));
+  }
+
+  return (
+    <div className="foods-db-page">
+      <div className="foods-db-header">
+        <button className="foods-db-back" onClick={onBack}>← Zpět</button>
+        <h1 className="foods-db-title">Databáze surovin</h1>
+      </div>
+
+      <div className="foods-db-tabs">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            className={`foods-db-tab ${tab === t.id ? 'active' : ''}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="foods-db-search">
+        <input
+          type="text"
+          placeholder="Hledat podle názvu…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        {loading && <span className="foods-db-loading">…</span>}
+      </div>
+
+      <div className="foods-db-list">
+        {rows.length === 0 && !loading && (
+          <div className="foods-db-empty">
+            {tab === 'pending'
+              ? 'Žádné potraviny nečekají na schválení.'
+              : tab === 'mine'
+                ? 'Zatím jsi nepřidal/a žádnou potravinu.'
+                : 'Nic nenalezeno.'}
+          </div>
+        )}
+        {rows.map((row) => {
+          const canEdit =
+            isTrainer || (row.created_by === user.id && row.status === 'pending');
+          return (
+            <div key={row.id} className={`foods-db-row status-${row.status}`}>
+              <div className="foods-db-row-main" onClick={() => canEdit && openEdit(row)}>
+                <div className="foods-db-row-title">
+                  {row.title}
+                  <span className={`foods-db-status status-${row.status}`}>
+                    {STATUS_LABEL[row.status] || row.status}
+                  </span>
+                </div>
+                <div className="foods-db-row-meta">
+                  <span>{round1(row.kcal)} kcal / 100 g</span>
+                  <span>B {round1(row.protein)}</span>
+                  <span>S {round1(row.carbs)}</span>
+                  <span>T {round1(row.fat)}</span>
+                  {row.fiber != null && <span>V {round1(row.fiber)}</span>}
+                  {isTrainer && row.creator && (
+                    <span className="foods-db-row-creator">
+                      👤 {row.creator.display_name || row.creator.email}
+                    </span>
+                  )}
+                  <span className="foods-db-row-source">
+                    {SOURCE_LABEL[row.source] || row.source}
+                  </span>
+                </div>
+              </div>
+              {isTrainer && row.status === 'pending' && (
+                <div className="foods-db-row-actions">
+                  <button
+                    className="foods-db-btn-approve"
+                    onClick={() => handleQuickApprove(row)}
+                    title="Rychle schválit beze změny"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    className="foods-db-btn-edit"
+                    onClick={() => openEdit(row)}
+                    title="Upravit a schválit"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    className="foods-db-btn-delete"
+                    onClick={() => handleDelete(row)}
+                    title="Smazat"
+                  >
+                    🗑
+                  </button>
+                </div>
+              )}
+              {isTrainer && row.status !== 'pending' && (
+                <div className="foods-db-row-actions">
+                  <button
+                    className="foods-db-btn-edit"
+                    onClick={() => openEdit(row)}
+                    title="Upravit"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    className="foods-db-btn-delete"
+                    onClick={() => handleDelete(row)}
+                    title="Smazat"
+                  >
+                    🗑
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {editing && (
+        <FoodEditModal
+          food={editing}
+          isTrainer={isTrainer}
+          onClose={() => setEditing(null)}
+          onSaved={handleSaved}
+        />
+      )}
+    </div>
+  );
+}
+
+function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
+  const { user } = useAuth();
+  const [form, setForm] = useState({
+    title: food.title || '',
+    kcal: food.kcal ?? '',
+    protein: food.protein ?? '',
+    carbs: food.carbs ?? '',
+    fat: food.fat ?? '',
+    fiber: food.fiber ?? '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  function set(k, v) {
+    setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  async function propagateToDiary(foodId, per100) {
+    // Najdi všechny diary_entries vázané na tuto potravinu a přepočítej.
+    const { data: entries, error } = await supabase
+      .from('diary_entries')
+      .select('id, grams')
+      .eq('food_id', foodId);
+    if (error) {
+      console.error('Propagate fetch error:', error);
+      return 0;
+    }
+    if (!entries || entries.length === 0) return 0;
+
+    let updated = 0;
+    for (const e of entries) {
+      const f = (Number(e.grams) || 0) / 100;
+      const { error: upErr } = await supabase
+        .from('diary_entries')
+        .update({
+          kcal: round1((per100.kcal || 0) * f),
+          protein: round1((per100.protein || 0) * f),
+          carbs: round1((per100.carbs || 0) * f),
+          fat: round1((per100.fat || 0) * f),
+          fiber: round1((per100.fiber || 0) * f),
+        })
+        .eq('id', e.id);
+      if (upErr) console.error('Propagate update error:', upErr);
+      else updated++;
+    }
+    return updated;
+  }
+
+  async function save({ approve }) {
+    setError(null);
+
+    const title = form.title.trim();
+    const kcal = parseFloat(String(form.kcal).replace(',', '.'));
+    const protein = parseFloat(String(form.protein).replace(',', '.'));
+    const carbs = parseFloat(String(form.carbs).replace(',', '.'));
+    const fat = parseFloat(String(form.fat).replace(',', '.'));
+    const fiberRaw = String(form.fiber).trim();
+    const fiber = fiberRaw === '' ? null : parseFloat(fiberRaw.replace(',', '.'));
+
+    if (!title) return setError('Zadej název.');
+    if ([kcal, protein, carbs, fat].some((v) => !Number.isFinite(v) || v < 0)) {
+      return setError('Vyplň kcal, B, S, T (čísla ≥ 0).');
+    }
+    if (fiber !== null && (!Number.isFinite(fiber) || fiber < 0)) {
+      return setError('Vláknina musí být číslo ≥ 0 nebo prázdné.');
+    }
+
+    setSaving(true);
+    try {
+      const per100 = {
+        kcal: round1(kcal),
+        protein: round1(protein),
+        carbs: round1(carbs),
+        fat: round1(fat),
+        fiber: fiber !== null ? round1(fiber) : null,
+      };
+
+      const update = {
+        title,
+        ...per100,
+      };
+
+      if (isTrainer && approve) {
+        update.status = 'approved';
+        update.approved_by = user.id;
+        update.approved_at = new Date().toISOString();
+      }
+
+      const { data: updated, error: upErr } = await supabase
+        .from('foods')
+        .update(update)
+        .eq('id', food.id)
+        .select()
+        .single();
+
+      if (upErr) {
+        setError('Uložení selhalo: ' + upErr.message);
+        return;
+      }
+
+      // Retroaktivní propagace: jen pokud potravina BYLA pending před uložením.
+      // (Schválené záznamy zůstávají historicky zamrzlé.)
+      let propagated = 0;
+      if (food.status === 'pending') {
+        propagated = await propagateToDiary(food.id, per100);
+      }
+
+      onSaved(updated, { propagated });
+    } catch (e) {
+      setError('Chyba: ' + (e?.message || e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const wasPending = food.status === 'pending';
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">Upravit potravinu</span>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+
+        <div className="modal-detail">
+          <div className="modal-detail-brand" style={{ marginBottom: 8 }}>
+            Hodnoty na <strong>100 g</strong>.
+            {wasPending && isTrainer && (
+              <> Změny se propíšou do jídelníčku autorky.</>
+            )}
+          </div>
+
+          <div className="modal-create-form">
+            <label className="modal-create-label">
+              Název
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => set('title', e.target.value)}
+              />
+            </label>
+
+            <label className="modal-create-label">
+              kcal / 100 g
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                value={form.kcal}
+                onChange={(e) => set('kcal', e.target.value)}
+              />
+            </label>
+
+            <div className="modal-create-macros">
+              <label className="modal-create-label">
+                Bílkoviny (g)
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  value={form.protein}
+                  onChange={(e) => set('protein', e.target.value)}
+                />
+              </label>
+              <label className="modal-create-label">
+                Sacharidy (g)
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  value={form.carbs}
+                  onChange={(e) => set('carbs', e.target.value)}
+                />
+              </label>
+              <label className="modal-create-label">
+                Tuky (g)
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  value={form.fat}
+                  onChange={(e) => set('fat', e.target.value)}
+                />
+              </label>
+              <label className="modal-create-label">
+                Vláknina (g) — volitelné
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  value={form.fiber}
+                  onChange={(e) => set('fiber', e.target.value)}
+                />
+              </label>
+            </div>
+
+            {error && <div className="modal-create-error">{error}</div>}
+          </div>
+
+          <div className="modal-detail-actions modal-create-actions">
+            <button className="modal-btn-back" onClick={onClose} disabled={saving}>
+              ← Zpět
+            </button>
+            {isTrainer && wasPending ? (
+              <>
+                <button
+                  className="modal-btn-add"
+                  onClick={() => save({ approve: false })}
+                  disabled={saving}
+                  style={{ background: '#888' }}
+                >
+                  Uložit
+                </button>
+                <button
+                  className="modal-btn-add"
+                  onClick={() => save({ approve: true })}
+                  disabled={saving}
+                >
+                  {saving ? 'Ukládám…' : 'Uložit a schválit'}
+                </button>
+              </>
+            ) : (
+              <button
+                className="modal-btn-add"
+                onClick={() => save({ approve: false })}
+                disabled={saving}
+              >
+                {saving ? 'Ukládám…' : 'Uložit'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

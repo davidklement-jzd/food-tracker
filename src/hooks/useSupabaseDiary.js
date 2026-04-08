@@ -146,6 +146,7 @@ export function useSupabaseDiary(userId, selectedDate) {
         fiber: entry.fiber || 0,
         sort_order: currentEntries.length,
         created_by: currentUser?.id || null,
+        food_id: entry.food_id || null,
       })
       .select()
       .single();

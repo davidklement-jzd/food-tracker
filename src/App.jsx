@@ -10,6 +10,7 @@ import TrainerDashboard from './components/TrainerDashboard';
 import TrainerClientDiary from './components/TrainerClientDiary';
 import SettingsPage from './components/SettingsPage';
 import AnalysisPage from './components/AnalysisPage';
+import FoodsDatabasePage from './components/FoodsDatabasePage';
 import WeightTracker from './components/WeightTracker';
 import ActivitySection from './components/ActivitySection';
 import ActivitySearchModal from './components/ActivitySearchModal';
@@ -132,6 +133,9 @@ export default function App() {
             </button>
           </div>
           <div className="header-user">
+            <button className="header-action-btn" onClick={() => setCurrentView('foods-db')}>
+              Databáze surovin
+            </button>
             <button className="header-action-btn" onClick={() => setCurrentView('analysis')}>
               Analýza
             </button>
@@ -157,6 +161,8 @@ export default function App() {
           <SettingsPage onBack={() => setCurrentView('diary')} />
         ) : currentView === 'analysis' ? (
           <AnalysisPage onBack={() => setCurrentView('diary')} />
+        ) : currentView === 'foods-db' ? (
+          <FoodsDatabasePage onBack={() => setCurrentView('diary')} />
         ) : (
         <div className="main-layout">
           <main className="content">
@@ -208,6 +214,9 @@ export default function App() {
           />
         )}
         <div className="header-user">
+          <button className="header-action-btn" onClick={() => setCurrentView('foods-db')}>
+            Databáze surovin
+          </button>
           <button className="header-action-btn" onClick={() => setCurrentView('analysis')}>
             Analýza
           </button>
@@ -233,6 +242,8 @@ export default function App() {
         <SettingsPage onBack={() => setCurrentView('diary')} />
       ) : currentView === 'analysis' ? (
         <AnalysisPage onBack={() => setCurrentView('diary')} />
+      ) : currentView === 'foods-db' ? (
+        <FoodsDatabasePage onBack={() => setCurrentView('diary')} />
       ) : (
       <>
       <div className="main-layout">

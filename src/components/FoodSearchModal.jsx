@@ -1,5 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { round, searchSupabaseFoods, supabaseFoodToProduct, parseServingSize, formatServingLabel, portionLabel } from '../utils/foodSearch';
+import { supabase } from '../lib/supabase';
+import { lookupByEan } from '../utils/barcodeLookup';
+
+const BarcodeScanner = lazy(() => import('./BarcodeScanner'));
 
 export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
   const [query, setQuery] = useState('');
@@ -7,6 +11,21 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null); // selected product
   const [amount, setAmount] = useState({ value: '', unit: 'g' });
+  const [creating, setCreating] = useState(false); // 'Přidat novou' formulář
+  const [createForm, setCreateForm] = useState({
+    title: '',
+    kcal: '',
+    protein: '',
+    carbs: '',
+    fat: '',
+    fiber: '',
+  });
+  const [createError, setCreateError] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanInfo, setScanInfo] = useState(null); // text pod formulářem ("Načteno z OFF" apod.)
+  const [pendingEan, setPendingEan] = useState(null);
   const timerRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -85,6 +104,7 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
       carbs: round((n.carbohydrates_100g || 0) * factor),
       fat: round((n.fat_100g || 0) * factor),
       fiber: round((n.fiber_100g || 0) * factor),
+      food_id: selected.id || null,
     });
     onClose();
   }
@@ -116,15 +136,270 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
   const previewFat = round((previewN.fat_100g || 0) * previewFactor);
   const previewFiber = round((previewN.fiber_100g || 0) * previewFactor);
 
+  function openCreate() {
+    setCreateError(null);
+    setCreateForm((f) => ({
+      ...f,
+      title: query.trim() || f.title,
+    }));
+    setScanInfo(null);
+    setPendingEan(null);
+    setCreating(true);
+  }
+
+  async function handleScanned(code) {
+    setScannerOpen(false);
+    setScanLoading(true);
+    try {
+      const result = await lookupByEan(code);
+      if (result.source === 'local' && result.food) {
+        // Máme to v naší DB → chovej se jako kdyby uživatel klikl ve výsledcích.
+        const product = supabaseFoodToProduct(result.food);
+        handleSelect(product);
+        return;
+      }
+      if (result.source === 'off' && result.off) {
+        // Předvyplň create formulář hodnotami z OFF.
+        setCreateForm({
+          title: result.off.title || '',
+          kcal: result.off.kcal != null ? String(result.off.kcal) : '',
+          protein: result.off.protein != null ? String(result.off.protein) : '',
+          carbs: result.off.carbs != null ? String(result.off.carbs) : '',
+          fat: result.off.fat != null ? String(result.off.fat) : '',
+          fiber: result.off.fiber != null ? String(result.off.fiber) : '',
+        });
+        setScanInfo(`Načteno z Open Food Facts (EAN ${code}). Zkontroluj/doplň hodnoty.`);
+        setPendingEan(code);
+        setCreating(true);
+        return;
+      }
+      // Nikde nenalezeno → otevři prázdný formulář s předvyplněným EAN.
+      setCreateForm({
+        title: '',
+        kcal: '',
+        protein: '',
+        carbs: '',
+        fat: '',
+        fiber: '',
+      });
+      setScanInfo(`Kód ${code} nebyl nalezen — vyplň hodnoty z obalu.`);
+      setPendingEan(code);
+      setCreating(true);
+    } finally {
+      setScanLoading(false);
+    }
+  }
+
+  function updateCreateField(key, value) {
+    setCreateForm((f) => ({ ...f, [key]: value }));
+  }
+
+  async function handleCreateSubmit() {
+    setCreateError(null);
+
+    const title = createForm.title.trim();
+    const kcalNum = parseFloat(String(createForm.kcal).replace(',', '.'));
+    const proteinNum = parseFloat(String(createForm.protein).replace(',', '.'));
+    const carbsNum = parseFloat(String(createForm.carbs).replace(',', '.'));
+    const fatNum = parseFloat(String(createForm.fat).replace(',', '.'));
+    const fiberRaw = String(createForm.fiber).trim();
+    const fiberNum = fiberRaw === '' ? null : parseFloat(fiberRaw.replace(',', '.'));
+
+    if (!title) {
+      setCreateError('Zadej název potraviny.');
+      return;
+    }
+    if ([kcalNum, proteinNum, carbsNum, fatNum].some((v) => !Number.isFinite(v) || v < 0)) {
+      setCreateError('Vyplň kcal, bílkoviny, sacharidy a tuky (čísla ≥ 0).');
+      return;
+    }
+    if (fiberNum !== null && (!Number.isFinite(fiberNum) || fiberNum < 0)) {
+      setCreateError('Vláknina musí být číslo ≥ 0 (nebo prázdné).');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setCreateError('Nejsi přihlášen/a.');
+        return;
+      }
+
+      // Hodnoty jsou vždy na 100 g (jako nutriční etiketa).
+      const per100 = {
+        kcal: Math.round(kcalNum * 10) / 10,
+        protein: Math.round(proteinNum * 10) / 10,
+        carbs: Math.round(carbsNum * 10) / 10,
+        fat: Math.round(fatNum * 10) / 10,
+        fiber: fiberNum !== null ? Math.round(fiberNum * 10) / 10 : null,
+      };
+
+      const foodId = `user_${crypto.randomUUID()}`;
+      const { data: inserted, error: insertErr } = await supabase
+        .from('foods')
+        .insert({
+          id: foodId,
+          title,
+          kcal: per100.kcal,
+          protein: per100.protein,
+          carbs: per100.carbs,
+          fat: per100.fat,
+          fiber: per100.fiber,
+          default_grams: 100,
+          source: 'user',
+          confidence: 4,
+          status: 'pending',
+          created_by: user.id,
+          ean: pendingEan || null,
+        })
+        .select()
+        .single();
+
+      if (insertErr) {
+        console.error('Insert food error:', insertErr);
+        setCreateError('Uložení selhalo: ' + insertErr.message);
+        return;
+      }
+
+      // Rovnou zapiš do dnešního jídelníčku jako 100g porce.
+      onAdd({
+        id: Date.now() + Math.random(),
+        name: inserted.title,
+        brand: '',
+        grams: 100,
+        displayAmount: '100g',
+        kcal: per100.kcal,
+        protein: per100.protein,
+        carbs: per100.carbs,
+        fat: per100.fat,
+        fiber: per100.fiber !== null ? per100.fiber : 0,
+        food_id: inserted.id,
+      });
+      onClose();
+    } catch (e) {
+      console.error(e);
+      setCreateError('Neočekávaná chyba: ' + (e?.message || e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose}>
+      {scannerOpen && (
+        <Suspense fallback={<div className="scanner-overlay"><div className="scanner-status">Načítám skener…</div></div>}>
+          <BarcodeScanner
+            onDetected={handleScanned}
+            onClose={() => setScannerOpen(false)}
+          />
+        </Suspense>
+      )}
       <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <span className="modal-title">{mealLabel}</span>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
-        {!selected ? (
+        {creating ? (
+          <div className="modal-detail">
+            <div className="modal-detail-name">Přidat novou potravinu</div>
+            <div className="modal-detail-brand" style={{ marginBottom: 8 }}>
+              Hodnoty uveďte <strong>na 100 g</strong> (jako na nutriční etiketě).
+            </div>
+            {scanInfo && (
+              <div className="modal-scan-info">{scanInfo}</div>
+            )}
+
+            <div className="modal-create-form">
+              <label className="modal-create-label">
+                Název
+                <input
+                  type="text"
+                  value={createForm.title}
+                  onChange={(e) => updateCreateField('title', e.target.value)}
+                  placeholder="např. Skyr vanilka Pilos"
+                  autoFocus
+                />
+              </label>
+
+              <label className="modal-create-label">
+                kcal / 100 g
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  value={createForm.kcal}
+                  onChange={(e) => updateCreateField('kcal', e.target.value)}
+                />
+              </label>
+
+              <div className="modal-create-macros">
+                <label className="modal-create-label">
+                  Bílkoviny (g)
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    value={createForm.protein}
+                    onChange={(e) => updateCreateField('protein', e.target.value)}
+                  />
+                </label>
+                <label className="modal-create-label">
+                  Sacharidy (g)
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    value={createForm.carbs}
+                    onChange={(e) => updateCreateField('carbs', e.target.value)}
+                  />
+                </label>
+                <label className="modal-create-label">
+                  Tuky (g)
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    value={createForm.fat}
+                    onChange={(e) => updateCreateField('fat', e.target.value)}
+                  />
+                </label>
+                <label className="modal-create-label">
+                  Vláknina (g) — volitelné
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    value={createForm.fiber}
+                    onChange={(e) => updateCreateField('fiber', e.target.value)}
+                  />
+                </label>
+              </div>
+
+              {createError && (
+                <div className="modal-create-error">{createError}</div>
+              )}
+            </div>
+
+            <div className="modal-detail-actions modal-create-actions">
+              <button
+                className="modal-btn-back"
+                onClick={() => setCreating(false)}
+                disabled={saving}
+              >
+                ← Zpět
+              </button>
+              <button
+                className="modal-btn-add"
+                onClick={handleCreateSubmit}
+                disabled={saving}
+              >
+                {saving ? 'Ukládám…' : 'Uložit a přidat'}
+              </button>
+            </div>
+          </div>
+        ) : !selected ? (
           <>
             <div className="modal-search">
               <span className="modal-search-icon">🔍</span>
@@ -163,6 +438,19 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
               {query.trim().length >= 2 && results.length === 0 && !loading && (
                 <div className="modal-no-results">Nic nenalezeno</div>
               )}
+            </div>
+
+            <div className="modal-create-cta">
+              <button
+                className="modal-btn-scan"
+                onClick={() => setScannerOpen(true)}
+                disabled={scanLoading}
+              >
+                📷 {scanLoading ? 'Hledám…' : 'Naskenovat čárový kód'}
+              </button>
+              <button className="modal-btn-create" onClick={openCreate}>
+                ➕ Přidat novou potravinu
+              </button>
             </div>
           </>
         ) : (
