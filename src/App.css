@@ -447,9 +447,13 @@ html, body {
 /* ===== DIARY CONTENT ===== */
 .diary-content {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 20px;
   align-items: start;
+}
+
+.diary-content > * {
+  min-width: 0;
 }
 
 /* ===== MEAL SECTIONS ===== */
@@ -1543,7 +1547,7 @@ html, body {
 /* ===== RESPONSIVE ===== */
 @media (max-width: 900px) {
   .diary-content {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .app-header {
