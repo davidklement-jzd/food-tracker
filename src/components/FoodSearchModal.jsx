@@ -14,6 +14,7 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
   const [creating, setCreating] = useState(false); // 'Přidat novou' formulář
   const [createForm, setCreateForm] = useState({
     title: '',
+    isLiquid: false,
     kcal: '',
     protein: '',
     carbs: '',
@@ -56,12 +57,13 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
     setSelected(product);
     const hasPortions = product.portions && product.portions.length > 0;
     const sGrams = parseServingSize(product.serving_size);
+    const baseUnit = product._isLiquid ? 'ml' : 'g';
     if (hasPortions) {
       setAmount({ value: '1', unit: 'portion_0' });
     } else if (sGrams) {
       setAmount({ value: '1', unit: 'serving' });
     } else {
-      setAmount({ value: '100', unit: 'g' });
+      setAmount({ value: '100', unit: baseUnit });
     }
   }
 
@@ -75,22 +77,24 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
     const n = selected.nutriments || {};
     const gramsTotal = getComputedGrams();
     const factor = gramsTotal / 100;
+    const isLiquid = !!selected._isLiquid;
+    const u = isLiquid ? 'ml' : 'g';
 
     let displayAmount;
     if (amount.unit === 'serving' && servingGrams) {
       const count = parseFloat(amount.value) || 1;
-      displayAmount = `${count}× porce (${Math.round(gramsTotal)}g)`;
+      displayAmount = `${count}× porce (${Math.round(gramsTotal)}${u})`;
     } else if (amount.unit.startsWith('portion_')) {
       const idx = parseInt(amount.unit.split('_')[1]);
       const p = portions[idx];
       if (p) {
         const count = parseFloat(amount.value) || 1;
-        displayAmount = count > 1 ? `${count}× ${p.label} (${Math.round(gramsTotal)}g)` : portionLabel(p);
+        displayAmount = count > 1 ? `${count}× ${p.label} (${Math.round(gramsTotal)}${u})` : portionLabel(p);
       } else {
-        displayAmount = `${Math.round(gramsTotal)}g`;
+        displayAmount = `${Math.round(gramsTotal)}${u}`;
       }
     } else {
-      displayAmount = `${Math.round(gramsTotal)}g`;
+      displayAmount = `${Math.round(gramsTotal)}${u}`;
     }
 
     onAdd({
@@ -105,6 +109,7 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
       fat: round((n.fat_100g || 0) * factor),
       fiber: round((n.fiber_100g || 0) * factor),
       food_id: selected.id || null,
+      unit: u,
     });
     onClose();
   }
@@ -235,7 +240,16 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
         fiber: fiberNum !== null ? Math.round(fiberNum * 10) / 10 : null,
       };
 
+      const isLiquid = !!createForm.isLiquid;
       const foodId = `user_${crypto.randomUUID()}`;
+
+      const liquidPortions = [
+        { label: 'Sklenice (250 ml)', grams: 250 },
+        { label: 'Plechovka (330 ml)', grams: 330 },
+        { label: 'Půllitr (500 ml)', grams: 500 },
+        { label: 'Litr (1000 ml)', grams: 1000 },
+      ];
+
       const { data: inserted, error: insertErr } = await supabase
         .from('foods')
         .insert({
@@ -252,6 +266,8 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
           status: 'pending',
           created_by: user.id,
           ean: pendingEan || null,
+          is_liquid: isLiquid,
+          portions: isLiquid ? liquidPortions : null,
         })
         .select()
         .single();
@@ -262,19 +278,21 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
         return;
       }
 
-      // Rovnou zapiš do dnešního jídelníčku jako 100g porce.
+      // Rovnou zapiš do dnešního jídelníčku jako 100 g (resp. 100 ml) porce.
+      const unit = isLiquid ? 'ml' : 'g';
       onAdd({
         id: Date.now() + Math.random(),
         name: inserted.title,
         brand: '',
         grams: 100,
-        displayAmount: '100g',
+        displayAmount: `100${unit}`,
         kcal: per100.kcal,
         protein: per100.protein,
         carbs: per100.carbs,
         fat: per100.fat,
         fiber: per100.fiber !== null ? per100.fiber : 0,
         food_id: inserted.id,
+        unit,
       });
       onClose();
     } catch (e) {
@@ -303,9 +321,27 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
 
         {creating ? (
           <div className="modal-detail">
-            <div className="modal-detail-name">Přidat novou potravinu</div>
+            <div className="modal-detail-name">
+              {createForm.isLiquid ? 'Přidat novou tekutinu' : 'Přidat novou potravinu'}
+            </div>
+            <div className="modal-create-toggle">
+              <button
+                type="button"
+                className={`modal-toggle-btn ${!createForm.isLiquid ? 'active' : ''}`}
+                onClick={() => updateCreateField('isLiquid', false)}
+              >
+                🍴 Pevná
+              </button>
+              <button
+                type="button"
+                className={`modal-toggle-btn ${createForm.isLiquid ? 'active' : ''}`}
+                onClick={() => updateCreateField('isLiquid', true)}
+              >
+                🥤 Tekutina
+              </button>
+            </div>
             <div className="modal-detail-brand" style={{ marginBottom: 8 }}>
-              Hodnoty uveďte <strong>na 100 g</strong> (jako na nutriční etiketě).
+              Hodnoty uveďte <strong>na 100 {createForm.isLiquid ? 'ml' : 'g'}</strong> (jako na nutriční etiketě).
             </div>
             {scanInfo && (
               <div className="modal-scan-info">{scanInfo}</div>
@@ -324,7 +360,7 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
               </label>
 
               <label className="modal-create-label">
-                kcal / 100 g
+                kcal / 100 {createForm.isLiquid ? 'ml' : 'g'}
                 <input
                   type="number"
                   inputMode="decimal"
@@ -460,7 +496,7 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
               <div className="modal-detail-brand">{selected.brands}</div>
             )}
             <div className="modal-detail-kcal">
-              {round(previewN['energy-kcal_100g'])} kcal / 100g
+              {round(previewN['energy-kcal_100g'])} kcal / 100 {selected._isLiquid ? 'ml' : 'g'}
             </div>
 
             <div className="modal-amount-label">Množství</div>
@@ -480,12 +516,14 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
                   const newUnit = e.target.value;
                   setAmount({
                     unit: newUnit,
-                    value: newUnit === 'g' ? String(Math.round(previewGrams)) : '1',
+                    value: newUnit === 'g' || newUnit === 'ml' ? String(Math.round(previewGrams)) : '1',
                   });
                 }}
                 className="modal-amount-unit"
               >
-                <option value="g">g</option>
+                <option value={selected._isLiquid ? 'ml' : 'g'}>
+                  {selected._isLiquid ? 'ml' : 'g'}
+                </option>
                 {portions.map((p, i) => (
                   <option key={i} value={`portion_${i}`}>{portionLabel(p)}</option>
                 ))}
@@ -495,7 +533,7 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
 
             <div className="modal-preview">
               <div className="modal-preview-total">
-                {Math.round(previewGrams)} g — <strong>{previewKcal} kcal</strong>
+                {Math.round(previewGrams)} {selected._isLiquid ? 'ml' : 'g'} — <strong>{previewKcal} kcal</strong>
               </div>
               <div className="modal-preview-macros">
                 <span className="macro-protein">{previewProtein}g B</span>

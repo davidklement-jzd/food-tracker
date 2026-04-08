@@ -76,6 +76,7 @@ export function useSupabaseDiary(userId, selectedDate) {
           carbs: entry.carbs,
           fat: entry.fat,
           fiber: entry.fiber,
+          unit: entry.unit || 'g',
           created_by: entry.created_by,
         });
       }
@@ -147,6 +148,7 @@ export function useSupabaseDiary(userId, selectedDate) {
         sort_order: currentEntries.length,
         created_by: currentUser?.id || null,
         food_id: entry.food_id || null,
+        unit: entry.unit || 'g',
       })
       .select()
       .single();

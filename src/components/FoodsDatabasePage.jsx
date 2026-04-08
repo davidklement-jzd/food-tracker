@@ -180,7 +180,7 @@ export default function FoodsDatabasePage({ onBack }) {
                   </span>
                 </div>
                 <div className="foods-db-row-meta">
-                  <span>{round1(row.kcal)} kcal / 100 g</span>
+                  <span>{round1(row.kcal)} kcal / 100 {row.is_liquid ? 'ml' : 'g'}</span>
                   <span>B {round1(row.protein)}</span>
                   <span>S {round1(row.carbs)}</span>
                   <span>T {round1(row.fat)}</span>
@@ -382,7 +382,7 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
 
         <div className="modal-detail">
           <div className="modal-detail-brand" style={{ marginBottom: 8 }}>
-            Hodnoty na <strong>100 g</strong>.
+            Hodnoty na <strong>100 {food.is_liquid ? 'ml' : 'g'}</strong>.
             {wasPending && isTrainer && (
               <> Změny se propíšou do jídelníčku autorky.</>
             )}
@@ -399,7 +399,7 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
             </label>
 
             <label className="modal-create-label">
-              kcal / 100 g
+              kcal / 100 {food.is_liquid ? 'ml' : 'g'}
               <input
                 type="number"
                 inputMode="decimal"

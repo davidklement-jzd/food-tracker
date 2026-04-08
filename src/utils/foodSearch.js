@@ -35,6 +35,7 @@ export function supabaseFoodToProduct(f) {
     brands: f.brand || f.category || '',
     _isLocal: true,
     _source: f.source,
+    _isLiquid: !!f.is_liquid,
     serving_size: f.default_grams ? `${f.default_grams}g` : null,
     portions,
     nutriments: {

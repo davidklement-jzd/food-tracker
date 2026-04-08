@@ -22,12 +22,12 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, note
   function startEditAmount(entry) {
     setEditingEntryId(entry.id);
     setEditValue(String(entry.grams));
-    setEditUnit('g');
+    setEditUnit(entry.unit || 'g');
     setEditPortions(findPortions(entry.name));
   }
 
   function getEditGrams() {
-    if (editUnit === 'g') return parseFloat(editValue) || 0;
+    if (editUnit === 'g' || editUnit === 'ml') return parseFloat(editValue) || 0;
     if (editUnit.startsWith('portion_') && editPortions) {
       const idx = parseInt(editUnit.split('_')[1]);
       const p = editPortions[idx];
@@ -38,6 +38,7 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, note
 
   function commitEdit(entry) {
     const newGrams = getEditGrams();
+    const u = entry.unit || 'g';
     if (newGrams > 0 && newGrams !== entry.grams) {
       const factor = newGrams / entry.grams;
       let displayAmount;
@@ -45,9 +46,9 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, note
         const idx = parseInt(editUnit.split('_')[1]);
         const p = editPortions[idx];
         const count = parseFloat(editValue) || 1;
-        displayAmount = count > 1 ? `${count}× ${p.label} (${Math.round(newGrams)}g)` : portionLabel(p);
+        displayAmount = count > 1 ? `${count}× ${p.label} (${Math.round(newGrams)}${u})` : portionLabel(p);
       } else {
-        displayAmount = `${Math.round(newGrams)}g`;
+        displayAmount = `${Math.round(newGrams)}${u}`;
       }
       onUpdateEntry(entry.id, {
         ...entry,
@@ -64,7 +65,7 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, note
   }
 
   function handleUnitChange(newUnit, entry) {
-    if (newUnit === 'g') {
+    if (newUnit === 'g' || newUnit === 'ml') {
       setEditValue(String(entry.grams));
     } else {
       setEditValue('1');
@@ -123,7 +124,9 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, note
                       onChange={(e) => handleUnitChange(e.target.value, entry)}
                       className="entry-unit-select"
                     >
-                      <option value="g">g</option>
+                      <option value={entry.unit === 'ml' ? 'ml' : 'g'}>
+                        {entry.unit === 'ml' ? 'ml' : 'g'}
+                      </option>
                       {editPortions && editPortions.map((p, i) => (
                         <option key={i} value={`portion_${i}`}>{portionLabel(p)}</option>
                       ))}
@@ -136,7 +139,7 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, note
                     onClick={() => startEditAmount(entry)}
                     title="Klikni pro úpravu gramáže"
                   >
-                    {entry.displayAmount || `${entry.grams}g`}
+                    {entry.displayAmount || `${entry.grams}${entry.unit || 'g'}`}
                   </span>
                 )}
               </div>
