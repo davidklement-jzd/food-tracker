@@ -77,6 +77,7 @@ export function useSupabaseDiary(userId, selectedDate) {
           fat: entry.fat,
           fiber: entry.fiber,
           unit: entry.unit || 'g',
+          food_id: entry.food_id || null,
           created_by: entry.created_by,
         });
       }
@@ -169,6 +170,8 @@ export function useSupabaseDiary(userId, selectedDate) {
       carbs: data.carbs,
       fat: data.fat,
       fiber: data.fiber,
+      unit: data.unit || 'g',
+      food_id: data.food_id || null,
     };
 
     setDayData((prev) => ({

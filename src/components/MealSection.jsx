@@ -1,14 +1,9 @@
 import { useState } from 'react';
 import { portionLabel } from '../utils/foodSearch';
+import { supabase } from '../lib/supabase';
 
 function round(val) {
   return Math.round(val * 10) / 10;
-}
-
-// Předdefinované porce u editace zatím nepoužíváme – uživatel edituje gramy přímo.
-// (Portions z Supabase tabulky se zobrazují jen při přidávání nového jídla v search modalu.)
-function findPortions() {
-  return null;
 }
 
 export default function MealSection({ meal, entries, onRemove, onToggleAdd, note, onNoteChange, onUpdateEntry, trainerComment, ownerId }) {
@@ -19,11 +14,23 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, note
   const [editUnit, setEditUnit] = useState('g');
   const [editPortions, setEditPortions] = useState(null);
 
-  function startEditAmount(entry) {
+  async function startEditAmount(entry) {
     setEditingEntryId(entry.id);
     setEditValue(String(entry.grams));
     setEditUnit(entry.unit || 'g');
-    setEditPortions(findPortions(entry.name));
+    setEditPortions(null);
+
+    // Asynchronně dohledej porce z foods tabulky podle food_id (pokud entry vazbu má)
+    if (entry.food_id) {
+      const { data, error } = await supabase
+        .from('foods')
+        .select('portions')
+        .eq('id', entry.food_id)
+        .maybeSingle();
+      if (!error && data?.portions && Array.isArray(data.portions) && data.portions.length > 0) {
+        setEditPortions(data.portions);
+      }
+    }
   }
 
   function getEditGrams() {
