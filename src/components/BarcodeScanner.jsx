@@ -35,19 +35,20 @@ export default function BarcodeScanner({ onDetected, onClose }) {
           delayBetweenScanAttempts: 200,
         });
 
-        // Vyber zadní kameru, pokud existuje
-        const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-        const back = devices.find((d) => /back|rear|environment/i.test(d.label));
-        const deviceId = back?.deviceId || devices[0]?.deviceId;
+        // Použít constraints místo deviceId — `listVideoInputDevices()` na iOS
+        // a v některých Androidech vrací prázdný seznam, dokud uživatel nepovolí
+        // kameru. `facingMode: environment` rovnou požádá o zadní kameru.
+        const constraints = {
+          audio: false,
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        };
 
-        if (!deviceId) {
-          setError('Nenašel jsem žádnou kameru.');
-          setStarting(false);
-          return;
-        }
-
-        const controls = await reader.decodeFromVideoDevice(
-          deviceId,
+        const controls = await reader.decodeFromConstraints(
+          constraints,
           videoRef.current,
           (result, err, ctrls) => {
             if (cancelled) return;
