@@ -1592,8 +1592,8 @@ html, body {
   }
 
   .header-action-btn {
-    padding: 6px 10px;
-    font-size: 12px;
+    padding: 8px 16px;
+    font-size: 14px;
   }
 
   .user-name-btn {
@@ -1713,6 +1713,15 @@ html, body {
     margin-left: 0;
     width: 100%;
     justify-content: center;
+  }
+
+  .trainer-client-card {
+    padding: 12px 12px;
+    gap: 10px;
+  }
+
+  .client-arrow {
+    display: none;
   }
 
   .trainer-client-actions .header-action-btn {
@@ -2048,6 +2057,7 @@ html, body {
 
 .client-info {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -2057,11 +2067,17 @@ html, body {
   font-weight: 600;
   font-size: 15px;
   color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .client-email {
   font-size: 13px;
   color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .client-arrow {
