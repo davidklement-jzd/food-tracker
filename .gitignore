@@ -27,6 +27,11 @@ dist-ssr
 data/*
 # Výjimka: ručně sepsaná fastfood databáze (malá, nereprodukovatelná)
 !data/fastfood-cz.jsonl
+# Výjimka: curated seznam českých klasik (vstup pro fetch-kt-foods.mjs)
+!data/cz-classics.tsv
+
+# Temp výstupy skriptů (SQL patche, logy)
+tmp/
 
 # Supabase CLI local state
 supabase/.temp/
