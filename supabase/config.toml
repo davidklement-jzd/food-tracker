@@ -1,5 +1,9 @@
 project_id = "food-tracker"
 
+# verify_jwt is false so the Edge Functions gateway doesn't reject legacy
+# HS256 user tokens. Authentication is enforced inside each function via
+# requireTrainer() in _shared/http.ts, which validates the bearer token via
+# supabase.auth.getUser() and requires the 'trainer' role.
 [functions.delete-client]
 verify_jwt = false
 

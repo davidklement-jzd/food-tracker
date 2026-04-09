@@ -1,143 +1,115 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SYSTEM_PROMPT } from "../_shared/styleGuide.ts";
+import {
+  buildDayContextPrompt,
+  corsHeadersFor,
+  enforceAiDailyLimit,
+  jsonResponse,
+  MEAL_ORDER,
+  requireTrainer,
+  safeNumber,
+} from "../_shared/http.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-const MEALS = ["breakfast", "snack1", "lunch", "snack2", "dinner", "supplements"];
-const MEAL_LABELS: Record<string, string> = {
-  breakfast: "Snídaně",
-  snack1: "Dopolední svačina",
-  lunch: "Oběd",
-  snack2: "Odpolední svačina",
-  dinner: "Večeře",
-  supplements: "Přepisy",
-};
+const DAILY_AI_LIMIT = Number(Deno.env.get("AI_DAILY_LIMIT") || "300");
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 Deno.serve(async (req) => {
+  const cors = corsHeadersFor(req);
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: cors });
+  }
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405, cors);
   }
 
   try {
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!anthropicKey) {
-      return new Response(
-        JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.error("ANTHROPIC_API_KEY not configured");
+      return jsonResponse({ error: "Server misconfigured" }, 500, cors);
     }
 
-    const { date } = await req.json();
-    if (!date) {
-      return new Response(
-        JSON.stringify({ error: "date is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const auth = await requireTrainer(req, cors);
+    if (auth instanceof Response) return auth;
+    const { admin } = auth;
+
+    const limited = await enforceAiDailyLimit(admin, DAILY_AI_LIMIT, cors);
+    if (limited) return limited;
+
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return jsonResponse({ error: "Invalid JSON body" }, 400, cors);
+    }
+    const { date } = body as Record<string, unknown>;
+    if (typeof date !== "string" || !ISO_DATE.test(date)) {
+      return jsonResponse({ error: "Invalid date (YYYY-MM-DD)" }, 400, cors);
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get all clients
-    const { data: clients } = await supabase
+    const { data: clients } = await admin
       .from("profiles")
-      .select("id, display_name, email, goal_kcal, goal_protein, goal_carbs, goal_fat, goal_fiber")
+      .select("id, display_name, email, goal_kcal, goal_protein")
       .eq("role", "client");
 
     if (!clients || clients.length === 0) {
-      return new Response(
-        JSON.stringify({ generated: 0, skipped: 0, message: "No clients found" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ generated: 0, skipped: 0, message: "No clients found" }, 200, cors);
     }
 
     let generated = 0;
     let skipped = 0;
 
     for (const client of clients) {
-      // Get diary day for this client
-      const { data: dayRow } = await supabase
+      const { data: dayRow } = await admin
         .from("diary_days")
         .select("id")
         .eq("user_id", client.id)
         .eq("date", date)
         .single();
 
-      if (!dayRow) {
-        // No diary for this day
-        continue;
-      }
+      if (!dayRow) continue;
 
-      // Get entries and existing comments
       const [entriesRes, commentsRes] = await Promise.all([
-        supabase
+        admin
           .from("diary_entries")
-          .select("*")
+          .select("meal_id, name, grams, kcal, protein, carbs, fat, fiber")
           .eq("day_id", dayRow.id)
           .order("sort_order"),
-        supabase
+        admin
           .from("trainer_comments")
-          .select("meal_id")
+          .select("meal_id, comment_text")
           .eq("day_id", dayRow.id),
       ]);
 
       const entries = entriesRes.data || [];
-      const existingCommentMeals = new Set(
-        (commentsRes.data || []).map((c: any) => c.meal_id)
-      );
+      if (entries.length === 0) continue;
 
-      // Group entries by meal
-      const mealEntries: Record<string, any[]> = {};
-      for (const entry of entries) {
-        if (!mealEntries[entry.meal_id]) mealEntries[entry.meal_id] = [];
-        mealEntries[entry.meal_id].push(entry);
+      // Running map of comments (pre-existing + generated in this run).
+      // Each subsequent meal sees all earlier comments as context.
+      const commentsMap: Record<string, string> = {};
+      for (const c of commentsRes.data || []) {
+        if (c.comment_text) commentsMap[c.meal_id] = c.comment_text;
       }
 
-      // Calculate daily totals
-      const dailyTotals = entries.reduce(
-        (acc: any, e: any) => ({
-          kcal: acc.kcal + (e.kcal || 0),
-          protein: acc.protein + (e.protein || 0),
-          carbs: acc.carbs + (e.carbs || 0),
-          fat: acc.fat + (e.fat || 0),
-          fiber: acc.fiber + (e.fiber || 0),
-        }),
-        { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
-      );
+      // Which meals in this day have entries?
+      const mealsWithEntries = new Set(entries.map((e) => e.meal_id));
 
-      // Generate comment for each meal that has entries but no comment
-      for (const mealId of MEALS) {
-        const mEntries = mealEntries[mealId];
-        if (!mEntries || mEntries.length === 0) continue;
-        if (existingCommentMeals.has(mealId)) {
+      for (const mealId of MEAL_ORDER) {
+        if (!mealsWithEntries.has(mealId)) continue;
+        if (commentsMap[mealId]) {
           skipped++;
           continue;
         }
 
-        const entriesText = mEntries
-          .map(
-            (e: any) =>
-              `- ${e.name}: ${e.grams}g, ${e.kcal} kcal, ${e.protein}g B, ${e.carbs}g S, ${e.fat}g T, ${e.fiber || 0}g V`
-          )
-          .join("\n");
+        // Re-check rate limit inside loop so bulk runs can't blow past the cap.
+        const limitedLoop = await enforceAiDailyLimit(admin, DAILY_AI_LIMIT, cors);
+        if (limitedLoop) return limitedLoop;
 
-        const goalKcal = client.goal_kcal || 2000;
-        const goalProtein = client.goal_protein || 100;
-        const kcalPct = Math.round((dailyTotals.kcal / goalKcal) * 100);
-        const proteinPct = Math.round((dailyTotals.protein / goalProtein) * 100);
-
-        const userPrompt = `Klientka: ${client.display_name || "klientka"}
-Denní cíle: ${goalKcal} kcal, ${goalProtein}g bílkovin
-Denní příjem celkem: ${Math.round(dailyTotals.kcal)} kcal (${kcalPct}%), ${Math.round(dailyTotals.protein)}g B (${proteinPct}%), ${Math.round(dailyTotals.carbs)}g S, ${Math.round(dailyTotals.fat)}g T
-
-Jídlo: ${MEAL_LABELS[mealId] || mealId}
-${entriesText}
-
-Napiš komentář k tomuto jídlu (max 250 znaků).`;
+        const userPrompt = buildDayContextPrompt({
+          clientName: client.display_name || "",
+          goalKcal: safeNumber(client.goal_kcal, 2000),
+          goalProtein: safeNumber(client.goal_protein, 100),
+          entries,
+          comments: commentsMap,
+          currentMealId: mealId,
+        });
 
         try {
           const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -155,11 +127,16 @@ Napiš komentář k tomuto jídlu (max 250 znaků).`;
             }),
           });
 
+          if (!response.ok) {
+            console.error("Anthropic API error:", response.status);
+            continue;
+          }
+
           const aiResult = await response.json();
           const comment = aiResult.content?.[0]?.text?.slice(0, 250) || "";
 
           if (comment) {
-            await supabase
+            await admin
               .from("trainer_comments")
               .upsert(
                 {
@@ -169,11 +146,10 @@ Napiš komentář k tomuto jídlu (max 250 znaků).`;
                   author: "ai",
                   updated_at: new Date().toISOString(),
                 },
-                { onConflict: "day_id,meal_id" }
+                { onConflict: "day_id,meal_id" },
               );
 
-            // Log usage
-            await supabase.from("ai_comment_log").insert({
+            await admin.from("ai_comment_log").insert({
               day_id: dayRow.id,
               meal_id: mealId,
               prompt_tokens: aiResult.usage?.input_tokens,
@@ -182,23 +158,19 @@ Napiš komentář k tomuto jídlu (max 250 znaků).`;
               raw_response: JSON.stringify(aiResult),
             });
 
+            // Add to running context so the next meal's prompt sees it
+            commentsMap[mealId] = comment;
             generated++;
           }
         } catch (aiErr) {
-          console.error(`AI error for ${client.email} / ${mealId}:`, aiErr);
+          console.error(`AI error for client ${client.id} / ${mealId}:`, aiErr);
         }
       }
     }
 
-    return new Response(
-      JSON.stringify({ generated, skipped }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ generated, skipped }, 200, cors);
   } catch (err) {
-    console.error("Error:", err);
-    return new Response(
-      JSON.stringify({ error: String(err) }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error("generate-all-comments error:", err);
+    return jsonResponse({ error: "Internal server error" }, 500, cors);
   }
 });

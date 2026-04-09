@@ -1,66 +1,34 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  corsHeadersFor,
+  isUuid,
+  jsonResponse,
+  requireTrainer,
+} from "../_shared/http.ts";
 
 Deno.serve(async (req) => {
+  const cors = corsHeadersFor(req);
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: cors });
+  }
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405, cors);
   }
 
-  console.log("delete-client invoked, method:", req.method);
-
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const auth = await requireTrainer(req, cors);
+    if (auth instanceof Response) return auth;
+    const { admin, userId: callerId } = auth;
 
-    const admin = createClient(supabaseUrl, supabaseServiceKey);
-
-    // JWT is already verified by the Supabase gateway; decode the payload to get the user id
-    const authHeader = req.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "");
-    let callerId: string | null = null;
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      callerId = payload.sub;
-    } catch {
-      return new Response(JSON.stringify({ error: "Malformed token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const body = await req.json().catch(() => null);
+    const client_id = (body as Record<string, unknown> | null)?.client_id;
+    if (!isUuid(client_id)) {
+      return jsonResponse({ error: "Invalid client_id" }, 400, cors);
     }
-    if (!callerId) {
-      return new Response(JSON.stringify({ error: "Missing subject in token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (client_id === callerId) {
+      console.warn("Trainer tried to delete self:", callerId);
+      return jsonResponse({ error: "Cannot delete self" }, 400, cors);
     }
 
-    const { data: callerProfile } = await admin
-      .from("profiles")
-      .select("role")
-      .eq("id", callerId)
-      .single();
-
-    console.log("callerId:", callerId, "callerProfile:", callerProfile);
-    if (!callerProfile || callerProfile.role !== "trainer") {
-      return new Response(JSON.stringify({ error: "Forbidden — role: " + (callerProfile?.role || "no profile") }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { client_id } = await req.json();
-    if (!client_id) {
-      return new Response(JSON.stringify({ error: "client_id is required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Safety: never allow deleting a trainer
     const { data: targetProfile } = await admin
       .from("profiles")
       .select("role")
@@ -68,35 +36,23 @@ Deno.serve(async (req) => {
       .single();
 
     if (!targetProfile) {
-      return new Response(JSON.stringify({ error: "Client not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Client not found" }, 404, cors);
     }
-
     if (targetProfile.role === "trainer") {
-      return new Response(JSON.stringify({ error: "Cannot delete trainer" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.warn("Attempt to delete trainer by", callerId, "target", client_id);
+      return jsonResponse({ error: "Cannot delete trainer" }, 403, cors);
     }
 
-    // Delete auth user — cascades to profiles and all related data
-    const { error: delErr } = await admin.auth.admin.deleteUser(client_id);
+    console.log("delete-client: caller", callerId, "deleting", client_id);
+    const { error: delErr } = await admin.auth.admin.deleteUser(client_id as string);
     if (delErr) {
-      return new Response(JSON.stringify({ error: delErr.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.error("deleteUser error:", delErr.message);
+      return jsonResponse({ error: "Delete failed" }, 500, cors);
     }
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ success: true }, 200, cors);
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("delete-client error:", err);
+    return jsonResponse({ error: "Internal server error" }, 500, cors);
   }
 });
