@@ -1,11 +1,16 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { round, searchSupabaseFoods, supabaseFoodToProduct, parseServingSize, formatServingLabel, portionLabel } from '../utils/foodSearch';
+import { round, searchSupabaseFoods, supabaseFoodToProduct, parseServingSize, formatServingLabel, portionLabel, recentFoodToProduct } from '../utils/foodSearch';
 import { supabase } from '../lib/supabase';
 import { lookupByEan } from '../utils/barcodeLookup';
+import { useRecentFoods } from '../hooks/useRecentFoods';
 
 const BarcodeScanner = lazy(() => import('./BarcodeScanner'));
 
-export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
+export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null, onAdd, onClose }) {
+  // "Kalorický dluh" (supplements) je ruční sekce — trenér ji vyplňuje sám,
+  // nedávné potraviny tam jen zavazí.
+  const recentEnabled = mealId !== 'supplements';
+  const { items: recentItems } = useRecentFoods({ mealId, enabled: recentEnabled, targetUserId });
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -65,6 +70,18 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
     } else {
       setAmount({ value: '100', unit: baseUnit });
     }
+  }
+
+  // Stejné jako handleSelect, ale přednastaví poslední použitou gramáž
+  // v základní jednotce (g/ml). Pokud potravina má portions, zůstanou v dropdownu
+  // k dispozici — klientka může přepnout.
+  function handleSelectRecent(product) {
+    setSelected(product);
+    const baseUnit = product._isLiquid ? 'ml' : 'g';
+    const lastGrams = product._lastGrams && product._lastGrams > 0
+      ? String(Math.round(product._lastGrams))
+      : '100';
+    setAmount({ value: lastGrams, unit: baseUnit });
   }
 
   function handleBack() {
@@ -450,6 +467,33 @@ export default function FoodSearchModal({ mealLabel, onAdd, onClose }) {
               />
               {loading && <span className="modal-loading">...</span>}
             </div>
+
+            {recentEnabled && recentItems.length > 0 && query.trim().length < 2 && (
+              <div className="modal-recent-section">
+                <div className="modal-recent-title">🕒 Nedávné</div>
+                {recentItems.map((r) => {
+                  const product = recentFoodToProduct(r);
+                  const unitLabel = r.unit === 'ml' ? 'ml' : 'g';
+                  return (
+                    <div
+                      key={`recent_${r.name}_${r.food_id || ''}_${r.unit}`}
+                      className="modal-result-item modal-recent-item"
+                      onClick={() => handleSelectRecent(product)}
+                    >
+                      <span className="modal-result-name">
+                        {r.name}
+                        {r.brand && (
+                          <span className="modal-result-brand"> · {r.brand}</span>
+                        )}
+                      </span>
+                      <span className="modal-result-kcal">
+                        {r.last_display_amount || `${r.last_grams}${unitLabel}`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="modal-results">
               {results.map((product) => {

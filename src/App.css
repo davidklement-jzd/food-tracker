@@ -926,6 +926,31 @@ html, body {
   min-height: 0;
 }
 
+.modal-recent-section {
+  border-bottom: 1px solid #eee;
+  background: #fafafa;
+  flex-shrink: 0;
+  max-height: 40%;
+  overflow-y: auto;
+}
+
+.modal-recent-title {
+  padding: 10px 20px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.modal-recent-item {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.modal-recent-item:last-child {
+  border-bottom: none;
+}
+
 .modal-result-item {
   display: flex;
   align-items: center;

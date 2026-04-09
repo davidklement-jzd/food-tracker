@@ -311,6 +311,7 @@ export default function App() {
       {modalMeal && modalMealObj && (
         <FoodSearchModal
           mealLabel={modalMealObj.label}
+          mealId={modalMeal}
           onAdd={(entry) => addEntry(modalMeal, entry)}
           onClose={() => setModalMeal(null)}
         />

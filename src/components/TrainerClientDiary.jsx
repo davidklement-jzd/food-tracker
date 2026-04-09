@@ -217,6 +217,8 @@ export default function TrainerClientDiary({ client, onBack }) {
       {modalMeal && modalMealObj && (
         <FoodSearchModal
           mealLabel={modalMealObj.label}
+          mealId={modalMeal}
+          targetUserId={clientProfile.id}
           onAdd={(entry) => addEntry(modalMeal, entry)}
           onClose={() => setModalMeal(null)}
         />

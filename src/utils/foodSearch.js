@@ -63,6 +63,37 @@ export function formatServingLabel(product) {
   return `1 porce (${ss})`;
 }
 
+// Konvertuje řádek z RPC get_recent_foods na product objekt používaný v modalu.
+// Přibalí `_recent` meta + `_lastGrams` pro předvyplnění množství v detailu.
+export function recentFoodToProduct(r) {
+  // Stejný fallback jako supabaseFoodToProduct: když foods nemá portions,
+  // ale má default_grams, vytvoříme syntetickou "Porci".
+  const portions = Array.isArray(r.portions) && r.portions.length > 0
+    ? r.portions
+    : (r.default_grams ? [{ label: 'Porce', grams: Number(r.default_grams) }] : null);
+  return {
+    // Reálné food_id (nebo null) — handleAdd ho dá do diary_entries.food_id,
+    // který má FK na foods(id). Syntetické "recent_*" by hodilo FK error.
+    id: r.food_id || null,
+    product_name: r.name,
+    brands: r.brand || '',
+    _isLocal: true,
+    _isLiquid: !!r.is_liquid,
+    _recent: true,
+    _lastGrams: r.last_grams,
+    _lastDisplayAmount: r.last_display_amount,
+    serving_size: null,
+    portions,
+    nutriments: {
+      'energy-kcal_100g': r.kcal,
+      proteins_100g: r.protein,
+      carbohydrates_100g: r.carbs,
+      fat_100g: r.fat,
+      fiber_100g: r.fiber,
+    },
+  };
+}
+
 // Vrátí label porce s gramy. Pokud label už obsahuje gramáž v závorce
 // (např. "1 banán (120g)"), nepřidává duplicitní suffix.
 export function portionLabel(p) {
