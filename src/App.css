@@ -861,7 +861,7 @@ html, body {
   width: 100%;
   max-width: 520px;
   max-height: 88vh;
-  max-height: 62dvh;
+  max-height: 50dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
