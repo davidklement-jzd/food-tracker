@@ -851,6 +851,7 @@ html, body {
   align-items: flex-start;
   justify-content: center;
   padding: 6vh 0 2vh;
+  padding: 2dvh 0 1dvh;
 }
 
 .modal-dialog {
@@ -860,6 +861,7 @@ html, body {
   width: 100%;
   max-width: 520px;
   max-height: 88vh;
+  max-height: 92dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -930,8 +932,10 @@ html, body {
   border-bottom: 1px solid #eee;
   background: #fafafa;
   max-height: 35vh;
+  max-height: 30dvh;
   overflow-y: auto;
   min-height: 0;
+  box-shadow: inset 0 -12px 10px -10px rgba(0, 0, 0, 0.08);
 }
 
 .modal-recent-title {
