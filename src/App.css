@@ -851,8 +851,6 @@ html, body {
   align-items: flex-start;
   justify-content: center;
   padding: 4vh 0 2vh;
-  /* Když je klávesnice otevřená, zmenši spodní prostor */
-  padding-bottom: calc(2vh + var(--kb-height, 0px));
 }
 
 .modal-dialog {
@@ -861,7 +859,7 @@ html, body {
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2);
   width: 100%;
   max-width: 520px;
-  max-height: calc(90vh - var(--kb-height, 0px));
+  max-height: min(90vh, calc(var(--vv-height, 100vh) - 20px));
   display: flex;
   flex-direction: column;
   overflow: hidden;

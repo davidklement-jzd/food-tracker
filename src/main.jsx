@@ -5,14 +5,14 @@ import './index.css'
 import App from './App.jsx'
 
 // Sleduj visualViewport — když se otevře klávesnice (iOS Chrome aj.),
-// nastav CSS proměnnou --kb-height s výškou klávesnice.
+// nastav CSS proměnnou --vv-height se skutečnou viditelnou výškou.
 if (window.visualViewport) {
   const update = () => {
-    const kbHeight = window.innerHeight - window.visualViewport.height;
-    document.documentElement.style.setProperty('--kb-height', `${kbHeight}px`);
+    document.documentElement.style.setProperty(
+      '--vv-height', `${window.visualViewport.height}px`
+    );
   };
   window.visualViewport.addEventListener('resize', update);
-  window.visualViewport.addEventListener('scroll', update);
   update();
 }
 
