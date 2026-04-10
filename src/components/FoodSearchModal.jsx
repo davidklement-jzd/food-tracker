@@ -339,6 +339,7 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
         </div>
 
         {creating ? (
+          <>
           <div className="modal-detail">
             <div className="modal-detail-name">
               {createForm.isLiquid ? 'Přidat novou tekutinu' : 'Přidat novou potravinu'}
@@ -436,8 +437,9 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                 <div className="modal-create-error">{createError}</div>
               )}
             </div>
+          </div>
 
-            <div className="modal-detail-actions modal-create-actions">
+            <div className="modal-create-cta modal-create-actions">
               <button
                 className="modal-btn-back"
                 onClick={() => setCreating(false)}
@@ -453,7 +455,7 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                 {saving ? 'Ukládám…' : 'Uložit a přidat'}
               </button>
             </div>
-          </div>
+          </>
         ) : !selected ? (
           <>
             <div className="modal-search">
@@ -536,6 +538,7 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
             </div>
           </>
         ) : (
+          <>
           <div className="modal-detail">
             <div className="modal-detail-name">{selected.product_name}</div>
             {selected.brands && (
@@ -588,8 +591,9 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                 <span className="macro-fiber">{previewFiber}g V</span>
               </div>
             </div>
+          </div>
 
-            <div className="modal-detail-actions">
+            <div className="modal-create-cta modal-create-actions">
               <button className="modal-btn-back" onClick={handleBack}>
                 ← Zpět
               </button>
@@ -597,7 +601,7 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                 Přidat
               </button>
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>
