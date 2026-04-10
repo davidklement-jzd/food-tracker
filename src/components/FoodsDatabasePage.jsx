@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { lookupByEan } from '../utils/barcodeLookup';
+
+const BarcodeScanner = lazy(() => import('./BarcodeScanner'));
 
 function round1(v) {
   if (v == null || !Number.isFinite(Number(v))) return 0;
@@ -27,6 +30,36 @@ export default function FoodsDatabasePage({ onBack }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanLoading, setScanLoading] = useState(false);
+
+  async function handleScanned(code) {
+    setScannerOpen(false);
+    setScanLoading(true);
+    try {
+      const result = await lookupByEan(code);
+      if (result.source === 'local' && result.food) {
+        // Už je v DB → otevři k editaci
+        openEdit(result.food);
+        return;
+      }
+      const prefill = { _isNew: true, ean: code };
+      if (result.source === 'off' && result.off) {
+        prefill.title = result.off.title || '';
+        prefill.kcal = result.off.kcal ?? '';
+        prefill.protein = result.off.protein ?? '';
+        prefill.carbs = result.off.carbs ?? '';
+        prefill.fat = result.off.fat ?? '';
+        prefill.fiber = result.off.fiber ?? '';
+        prefill._scanInfo = `Načteno z Open Food Facts (EAN ${code}). Zkontroluj/doplň hodnoty.`;
+      } else {
+        prefill._scanInfo = `Kód ${code} nebyl nalezen — vyplň hodnoty z obalu.`;
+      }
+      setEditing(prefill);
+    } finally {
+      setScanLoading(false);
+    }
+  }
 
   const fetchList = useCallback(async () => {
     if (!user) return;
@@ -160,9 +193,27 @@ export default function FoodsDatabasePage({ onBack }) {
         {loading && <span className="foods-db-loading">…</span>}
       </div>
 
-      <button className="foods-db-add-btn" onClick={() => setEditing({ _isNew: true })}>
-        ➕ Přidat novou potravinu
-      </button>
+      <div className="foods-db-add-buttons">
+        <button
+          className="foods-db-scan-btn"
+          onClick={() => setScannerOpen(true)}
+          disabled={scanLoading}
+        >
+          📷 {scanLoading ? 'Hledám…' : 'Naskenovat čárový kód'}
+        </button>
+        <button className="foods-db-add-btn" onClick={() => setEditing({ _isNew: true })}>
+          ➕ Přidat ručně
+        </button>
+      </div>
+
+      {scannerOpen && (
+        <Suspense fallback={<div className="scanner-overlay"><div className="scanner-status">Načítám skener…</div></div>}>
+          <BarcodeScanner
+            onDetected={handleScanned}
+            onClose={() => setScannerOpen(false)}
+          />
+        </Suspense>
+      )}
 
       <div className="foods-db-list">
         {rows.length === 0 && !loading && (
@@ -363,6 +414,7 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
             created_by: user.id,
             is_liquid: isLiquid,
             portions: isLiquid ? liquidPortions : null,
+            ean: food.ean || null,
             ...(isTrainer ? { approved_by: user.id, approved_at: new Date().toISOString() } : {}),
           })
           .select()
@@ -447,6 +499,9 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
               <> Změny se propíšou do jídelníčku autorky.</>
             )}
           </div>
+          {food._scanInfo && (
+            <div className="modal-scan-info">{food._scanInfo}</div>
+          )}
 
           <div className="modal-create-form">
             <label className="modal-create-label">

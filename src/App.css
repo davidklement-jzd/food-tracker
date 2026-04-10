@@ -1451,10 +1451,38 @@ html, body {
   border-color: #4caf50;
 }
 
-.foods-db-add-btn {
-  width: 100%;
-  padding: 12px;
+.foods-db-add-buttons {
+  display: flex;
+  gap: 8px;
   margin-bottom: 16px;
+}
+
+.foods-db-scan-btn {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #1976d2;
+  border-radius: 10px;
+  background: #e3f2fd;
+  color: #0d47a1;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.foods-db-scan-btn:hover {
+  background: #bbdefb;
+}
+
+.foods-db-scan-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.foods-db-add-btn {
+  flex: 1;
+  padding: 12px;
   border: 2px dashed #4caf50;
   border-radius: 10px;
   background: #f0faf0;
