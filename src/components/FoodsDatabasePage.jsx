@@ -366,12 +366,17 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
   async function save({ approve }) {
     setError(null);
 
+    const parse = (v) => {
+      const s = String(v ?? '').trim().replace(',', '.');
+      if (s === '') return NaN;
+      return parseFloat(s);
+    };
     const title = form.title.trim();
-    const kcal = parseFloat(String(form.kcal).replace(',', '.'));
-    const protein = parseFloat(String(form.protein).replace(',', '.'));
-    const carbs = parseFloat(String(form.carbs).replace(',', '.'));
-    const fat = parseFloat(String(form.fat).replace(',', '.'));
-    const fiberRaw = String(form.fiber).trim();
+    const kcal = parse(form.kcal);
+    const protein = parse(form.protein);
+    const carbs = parse(form.carbs);
+    const fat = parse(form.fat);
+    const fiberRaw = String(form.fiber ?? '').trim();
     const fiber = fiberRaw === '' ? null : parseFloat(fiberRaw.replace(',', '.'));
 
     if (!title) return setError('Zadej název.');

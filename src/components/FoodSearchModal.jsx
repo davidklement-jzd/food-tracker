@@ -221,11 +221,16 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
     setCreateError(null);
 
     const title = createForm.title.trim();
-    const kcalNum = parseFloat(String(createForm.kcal).replace(',', '.'));
-    const proteinNum = parseFloat(String(createForm.protein).replace(',', '.'));
-    const carbsNum = parseFloat(String(createForm.carbs).replace(',', '.'));
-    const fatNum = parseFloat(String(createForm.fat).replace(',', '.'));
-    const fiberRaw = String(createForm.fiber).trim();
+    const parse = (v) => {
+      const s = String(v ?? '').trim().replace(',', '.');
+      if (s === '') return NaN;
+      return parseFloat(s);
+    };
+    const kcalNum = parse(createForm.kcal);
+    const proteinNum = parse(createForm.protein);
+    const carbsNum = parse(createForm.carbs);
+    const fatNum = parse(createForm.fat);
+    const fiberRaw = String(createForm.fiber ?? '').trim();
     const fiberNum = fiberRaw === '' ? null : parseFloat(fiberRaw.replace(',', '.'));
 
     if (!title) {
