@@ -850,7 +850,7 @@ html, body {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 4vh 0 2vh;
+  padding: min(4vh, calc(var(--vv-height, 100vh) * 0.01)) 0 0;
 }
 
 .modal-dialog {
@@ -859,7 +859,7 @@ html, body {
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2);
   width: 100%;
   max-width: 520px;
-  max-height: min(90vh, calc(var(--vv-height, 100vh) - 20px));
+  max-height: min(90vh, calc(var(--vv-height, 100vh) - 8px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -869,8 +869,9 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px 12px;
+  padding: 12px 20px 8px;
   border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
 }
 
 .modal-title {
@@ -1002,7 +1003,7 @@ html, body {
 
 /* Modal detail (after selecting a food) */
 .modal-detail {
-  padding: 24px 20px;
+  padding: 14px 20px;
   flex: 1;
   overflow-y: auto;
   min-height: 0;
