@@ -83,13 +83,16 @@ export default function FoodsDatabasePage({ onBack }) {
     setEditing(row);
   }
 
-  async function handleSaved(updatedRow, { propagated }) {
-    setRows((prev) => prev.map((r) => (r.id === updatedRow.id ? updatedRow : r)));
-    setEditing(null);
-    if (tab === 'pending' && updatedRow.status !== 'pending') {
-      // přesunulo se mimo aktuální tab → odstranit z listu
-      setRows((prev) => prev.filter((r) => r.id !== updatedRow.id));
+  async function handleSaved(updatedRow, { propagated, isNew }) {
+    if (isNew) {
+      setRows((prev) => [updatedRow, ...prev]);
+    } else {
+      setRows((prev) => prev.map((r) => (r.id === updatedRow.id ? updatedRow : r)));
+      if (tab === 'pending' && updatedRow.status !== 'pending') {
+        setRows((prev) => prev.filter((r) => r.id !== updatedRow.id));
+      }
     }
+    setEditing(null);
   }
 
   async function handleQuickApprove(row) {
@@ -156,6 +159,10 @@ export default function FoodsDatabasePage({ onBack }) {
         />
         {loading && <span className="foods-db-loading">…</span>}
       </div>
+
+      <button className="foods-db-add-btn" onClick={() => setEditing({ _isNew: true })}>
+        ➕ Přidat novou potravinu
+      </button>
 
       <div className="foods-db-list">
         {rows.length === 0 && !loading && (
@@ -257,6 +264,7 @@ export default function FoodsDatabasePage({ onBack }) {
 
 function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
   const { user } = useAuth();
+  const isNew = !!food._isNew;
   const [form, setForm] = useState({
     title: food.title || '',
     kcal: food.kcal ?? '',
@@ -264,6 +272,7 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
     carbs: food.carbs ?? '',
     fat: food.fat ?? '',
     fiber: food.fiber ?? '',
+    isLiquid: food.is_liquid ?? false,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -332,6 +341,41 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
         fiber: fiber !== null ? round1(fiber) : null,
       };
 
+      if (isNew) {
+        const isLiquid = !!form.isLiquid;
+        const liquidPortions = [
+          { label: 'Sklenice (250 ml)', grams: 250 },
+          { label: 'Plechovka (330 ml)', grams: 330 },
+          { label: 'Půllitr (500 ml)', grams: 500 },
+          { label: 'Litr (1000 ml)', grams: 1000 },
+        ];
+
+        const { data: inserted, error: insErr } = await supabase
+          .from('foods')
+          .insert({
+            id: `user_${crypto.randomUUID()}`,
+            title,
+            ...per100,
+            default_grams: 100,
+            source: 'user',
+            confidence: 4,
+            status: isTrainer ? 'approved' : 'pending',
+            created_by: user.id,
+            is_liquid: isLiquid,
+            portions: isLiquid ? liquidPortions : null,
+            ...(isTrainer ? { approved_by: user.id, approved_at: new Date().toISOString() } : {}),
+          })
+          .select()
+          .single();
+
+        if (insErr) {
+          setError('Uložení selhalo: ' + insErr.message);
+          return;
+        }
+        onSaved(inserted, { propagated: 0, isNew: true });
+        return;
+      }
+
       const update = {
         title,
         ...per100,
@@ -355,8 +399,6 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
         return;
       }
 
-      // Retroaktivní propagace: jen pokud potravina BYLA pending před uložením.
-      // (Schválené záznamy zůstávají historicky zamrzlé.)
       let propagated = 0;
       if (food.status === 'pending') {
         propagated = await propagateToDiary(food.id, per100);
@@ -376,14 +418,32 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <span className="modal-title">Upravit potravinu</span>
+          <span className="modal-title">{isNew ? 'Přidat potravinu' : 'Upravit potravinu'}</span>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
         <div className="modal-detail">
+          {isNew && (
+            <div className="modal-create-toggle">
+              <button
+                type="button"
+                className={`modal-toggle-btn ${!form.isLiquid ? 'active' : ''}`}
+                onClick={() => set('isLiquid', false)}
+              >
+                🍴 Pevná
+              </button>
+              <button
+                type="button"
+                className={`modal-toggle-btn ${form.isLiquid ? 'active' : ''}`}
+                onClick={() => set('isLiquid', true)}
+              >
+                🥤 Tekutina
+              </button>
+            </div>
+          )}
           <div className="modal-detail-brand" style={{ marginBottom: 8 }}>
-            Hodnoty na <strong>100 {food.is_liquid ? 'ml' : 'g'}</strong>.
-            {wasPending && isTrainer && (
+            Hodnoty na <strong>100 {(isNew ? form.isLiquid : food.is_liquid) ? 'ml' : 'g'}</strong>.
+            {!isNew && wasPending && isTrainer && (
               <> Změny se propíšou do jídelníčku autorky.</>
             )}
           </div>
@@ -395,11 +455,12 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
                 type="text"
                 value={form.title}
                 onChange={(e) => set('title', e.target.value)}
+                autoFocus={isNew}
               />
             </label>
 
             <label className="modal-create-label">
-              kcal / 100 {food.is_liquid ? 'ml' : 'g'}
+              kcal / 100 {(isNew ? form.isLiquid : food.is_liquid) ? 'ml' : 'g'}
               <input
                 type="number"
                 inputMode="decimal"
@@ -455,11 +516,21 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
             {error && <div className="modal-create-error">{error}</div>}
           </div>
 
-          <div className="modal-detail-actions modal-create-actions">
+        </div>
+
+          <div className="modal-create-cta modal-create-actions">
             <button className="modal-btn-back" onClick={onClose} disabled={saving}>
               ← Zpět
             </button>
-            {isTrainer && wasPending ? (
+            {isNew ? (
+              <button
+                className="modal-btn-add"
+                onClick={() => save({ approve: false })}
+                disabled={saving}
+              >
+                {saving ? 'Ukládám…' : 'Uložit'}
+              </button>
+            ) : isTrainer && wasPending ? (
               <>
                 <button
                   className="modal-btn-add"
@@ -487,7 +558,6 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
               </button>
             )}
           </div>
-        </div>
       </div>
     </div>
   );

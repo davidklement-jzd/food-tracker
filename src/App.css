@@ -1451,6 +1451,25 @@ html, body {
   border-color: #4caf50;
 }
 
+.foods-db-add-btn {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 2px dashed #4caf50;
+  border-radius: 10px;
+  background: #f0faf0;
+  color: #2e7d32;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.foods-db-add-btn:hover {
+  background: #e0f5e0;
+}
+
 .foods-db-loading {
   position: absolute;
   right: 14px;
