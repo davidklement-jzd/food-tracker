@@ -861,7 +861,7 @@ html, body {
   width: 100%;
   max-width: 520px;
   max-height: 88vh;
-  max-height: 92dvh;
+  max-height: 85dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -932,7 +932,7 @@ html, body {
   border-bottom: 1px solid #eee;
   background: #fafafa;
   max-height: 35vh;
-  max-height: 30dvh;
+  max-height: 28dvh;
   overflow-y: auto;
   min-height: 0;
   box-shadow: inset 0 -12px 10px -10px rgba(0, 0, 0, 0.08);
