@@ -48,15 +48,17 @@ export async function lookupByEan(ean) {
       LIQUID_QUANTITY_RE.test(p.quantity || '') ||
       LIQUID_QUANTITY_RE.test(p.serving_size || '');
 
+    const r1 = (v) => v != null ? Math.round(v * 10) / 10 : null;
+
     return {
       source: 'off',
       off: {
         title,
-        kcal: n['energy-kcal_100g'] ?? null,
-        protein: n.proteins_100g ?? null,
-        carbs: n.carbohydrates_100g ?? null,
-        fat: n.fat_100g ?? null,
-        fiber: n.fiber_100g ?? null,
+        kcal: r1(n['energy-kcal_100g']),
+        protein: r1(n.proteins_100g),
+        carbs: r1(n.carbohydrates_100g),
+        fat: r1(n.fat_100g),
+        fiber: r1(n.fiber_100g),
         isLiquid,
       },
     };

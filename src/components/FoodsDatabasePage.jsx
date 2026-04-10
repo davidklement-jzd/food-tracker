@@ -437,6 +437,7 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
       const update = {
         title,
         ...per100,
+        is_liquid: !!form.isLiquid,
       };
 
       if (isTrainer && approve) {
@@ -481,26 +482,24 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
         </div>
 
         <div className="modal-detail">
-          {isNew && (
-            <div className="modal-create-toggle">
-              <button
-                type="button"
-                className={`modal-toggle-btn ${!form.isLiquid ? 'active' : ''}`}
-                onClick={() => set('isLiquid', false)}
-              >
-                🍴 Pevná
-              </button>
-              <button
-                type="button"
-                className={`modal-toggle-btn ${form.isLiquid ? 'active' : ''}`}
-                onClick={() => set('isLiquid', true)}
-              >
-                🥤 Tekutina
-              </button>
-            </div>
-          )}
+          <div className="modal-create-toggle">
+            <button
+              type="button"
+              className={`modal-toggle-btn ${!form.isLiquid ? 'active' : ''}`}
+              onClick={() => set('isLiquid', false)}
+            >
+              🍴 Pevná
+            </button>
+            <button
+              type="button"
+              className={`modal-toggle-btn ${form.isLiquid ? 'active' : ''}`}
+              onClick={() => set('isLiquid', true)}
+            >
+              🥤 Tekutina
+            </button>
+          </div>
           <div className="modal-detail-brand" style={{ marginBottom: 8 }}>
-            Hodnoty na <strong>100 {(isNew ? form.isLiquid : food.is_liquid) ? 'ml' : 'g'}</strong>.
+            Hodnoty na <strong>100 {form.isLiquid ? 'ml' : 'g'}</strong>.
             {!isNew && wasPending && isTrainer && (
               <> Změny se propíšou do jídelníčku autorky.</>
             )}
@@ -521,7 +520,7 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
             </label>
 
             <label className="modal-create-label">
-              kcal / 100 {(isNew ? form.isLiquid : food.is_liquid) ? 'ml' : 'g'}
+              kcal / 100 {form.isLiquid ? 'ml' : 'g'}
               <input
                 type="number"
                 inputMode="decimal"
