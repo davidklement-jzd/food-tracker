@@ -929,7 +929,7 @@ html, body {
 .modal-recent-section {
   border-bottom: 1px solid #eee;
   background: #fafafa;
-  max-height: 35vh;
+  max-height: 25vh;
   overflow-y: auto;
   min-height: 0;
   box-shadow: inset 0 -12px 10px -10px rgba(0, 0, 0, 0.08);
