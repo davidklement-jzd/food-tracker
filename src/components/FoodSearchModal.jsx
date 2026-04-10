@@ -185,6 +185,7 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
         // Předvyplň create formulář hodnotami z OFF.
         setCreateForm({
           title: result.off.title || '',
+          isLiquid: !!result.off.isLiquid,
           kcal: result.off.kcal != null ? String(result.off.kcal) : '',
           protein: result.off.protein != null ? String(result.off.protein) : '',
           carbs: result.off.carbs != null ? String(result.off.carbs) : '',

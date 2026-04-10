@@ -12,7 +12,7 @@ const DEFAULT_LIQUID_PORTIONS = [
   { label: 'Litr (1000 ml)', grams: 1000 },
 ];
 
-function isLikelyLiquid(name) {
+export function isLikelyLiquid(name) {
   return LIQUID_NAME_RE.test(name || '');
 }
 

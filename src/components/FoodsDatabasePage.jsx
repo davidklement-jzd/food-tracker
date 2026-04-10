@@ -51,6 +51,7 @@ export default function FoodsDatabasePage({ onBack }) {
         prefill.carbs = result.off.carbs ?? '';
         prefill.fat = result.off.fat ?? '';
         prefill.fiber = result.off.fiber ?? '';
+        prefill.is_liquid = !!result.off.isLiquid;
         prefill._scanInfo = `Načteno z Open Food Facts (EAN ${code}). Zkontroluj/doplň hodnoty.`;
       } else {
         prefill._scanInfo = `Kód ${code} nebyl nalezen — vyplň hodnoty z obalu.`;

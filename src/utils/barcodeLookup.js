@@ -2,6 +2,9 @@
 // Vrací: { source: 'local'|'off'|'none', food?: <foods row>, off?: { title, kcal, protein, carbs, fat, fiber } }
 
 import { supabase } from '../lib/supabase';
+import { isLikelyLiquid } from '../hooks/useSupabaseDiary';
+
+const LIQUID_QUANTITY_RE = /\b(m\s*l|cl|dl|l(?:itr))\b/i;
 
 export async function lookupByEan(ean) {
   if (!ean) return { source: 'none' };
@@ -20,7 +23,7 @@ export async function lookupByEan(ean) {
   // 2) Open Food Facts (světová DB, zdarma, bez API klíče)
   try {
     const res = await fetch(
-      `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(ean)}.json?fields=product_name,product_name_cs,nutriments,brands,quantity`,
+      `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(ean)}.json?fields=product_name,product_name_cs,nutriments,brands,quantity,serving_size`,
       {
         headers: {
           // OFF prosí klienty, ať se identifikují přes UA
@@ -40,6 +43,11 @@ export async function lookupByEan(ean) {
       [p.brands, p.quantity].filter(Boolean).join(' ') ||
       `Produkt ${ean}`;
 
+    const isLiquid =
+      isLikelyLiquid(title) ||
+      LIQUID_QUANTITY_RE.test(p.quantity || '') ||
+      LIQUID_QUANTITY_RE.test(p.serving_size || '');
+
     return {
       source: 'off',
       off: {
@@ -49,6 +57,7 @@ export async function lookupByEan(ean) {
         carbs: n.carbohydrates_100g ?? null,
         fat: n.fat_100g ?? null,
         fiber: n.fiber_100g ?? null,
+        isLiquid,
       },
     };
   } catch (e) {
