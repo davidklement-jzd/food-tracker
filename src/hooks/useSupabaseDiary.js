@@ -33,6 +33,11 @@ export function useSupabaseDiary(userId, selectedDate) {
 
     let cancelled = false;
 
+    // Okamžitě vyčistit předchozí data, aby se nezobrazovaly komentáře/entries z jiného dne
+    setDayData({});
+    setDayId(null);
+    setComments({});
+
     async function fetchDay() {
       setLoading(true);
 
