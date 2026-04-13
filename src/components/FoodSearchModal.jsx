@@ -388,9 +388,8 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
               <label className="modal-create-label">
                 kcal / 100 {createForm.isLiquid ? 'ml' : 'g'}
                 <input
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  min="0"
                   value={createForm.kcal}
                   onChange={(e) => updateCreateField('kcal', e.target.value)}
                 />
@@ -400,9 +399,8 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                 <label className="modal-create-label">
                   Bílkoviny (g)
                   <input
-                    type="number"
+                    type="text"
                     inputMode="decimal"
-                    min="0"
                     value={createForm.protein}
                     onChange={(e) => updateCreateField('protein', e.target.value)}
                   />
@@ -410,9 +408,8 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                 <label className="modal-create-label">
                   Sacharidy (g)
                   <input
-                    type="number"
+                    type="text"
                     inputMode="decimal"
-                    min="0"
                     value={createForm.carbs}
                     onChange={(e) => updateCreateField('carbs', e.target.value)}
                   />
@@ -420,9 +417,8 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                 <label className="modal-create-label">
                   Tuky (g)
                   <input
-                    type="number"
+                    type="text"
                     inputMode="decimal"
-                    min="0"
                     value={createForm.fat}
                     onChange={(e) => updateCreateField('fat', e.target.value)}
                   />
@@ -430,9 +426,8 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                 <label className="modal-create-label">
                   Vláknina (g) — volitelné
                   <input
-                    type="number"
+                    type="text"
                     inputMode="decimal"
-                    min="0"
                     value={createForm.fiber}
                     onChange={(e) => updateCreateField('fiber', e.target.value)}
                   />

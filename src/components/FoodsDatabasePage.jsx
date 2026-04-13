@@ -522,9 +522,8 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
             <label className="modal-create-label">
               kcal / 100 {form.isLiquid ? 'ml' : 'g'}
               <input
-                type="number"
+                type="text"
                 inputMode="decimal"
-                min="0"
                 value={form.kcal}
                 onChange={(e) => set('kcal', e.target.value)}
               />
@@ -534,9 +533,8 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
               <label className="modal-create-label">
                 Bílkoviny (g)
                 <input
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  min="0"
                   value={form.protein}
                   onChange={(e) => set('protein', e.target.value)}
                 />
@@ -544,9 +542,8 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
               <label className="modal-create-label">
                 Sacharidy (g)
                 <input
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  min="0"
                   value={form.carbs}
                   onChange={(e) => set('carbs', e.target.value)}
                 />
@@ -554,9 +551,8 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
               <label className="modal-create-label">
                 Tuky (g)
                 <input
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  min="0"
                   value={form.fat}
                   onChange={(e) => set('fat', e.target.value)}
                 />
@@ -564,9 +560,8 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
               <label className="modal-create-label">
                 Vláknina (g) — volitelné
                 <input
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  min="0"
                   value={form.fiber}
                   onChange={(e) => set('fiber', e.target.value)}
                 />
