@@ -111,7 +111,7 @@ export default function SettingsPage({ onBack, targetUserId, targetProfile, onPr
           <div className="settings-section">
             <h3>Profil</h3>
             <div className="settings-field">
-              <label htmlFor="displayName">Jméno</label>
+              <label htmlFor="displayName">Jméno a příjmení</label>
               <input
                 id="displayName"
                 type="text"

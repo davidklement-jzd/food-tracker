@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useClientList } from '../hooks/useTrainerData';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 function toDateStr(d) {
   const y = d.getFullYear();
@@ -32,7 +33,15 @@ function formatDayLabel(dateStr) {
   return { top: dayName.charAt(0).toUpperCase() + dayName.slice(1), bottom: label };
 }
 
+function generateInviteCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const arr = new Uint8Array(8);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => chars[b % chars.length]).join('');
+}
+
 export default function TrainerDashboard({ onSelectClient }) {
+  const { user } = useAuth();
   const { clients, loading, refresh } = useClientList();
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkResult, setBulkResult] = useState(null);
@@ -41,6 +50,78 @@ export default function TrainerDashboard({ onSelectClient }) {
   const [deleteTarget, setDeleteTarget] = useState(null); // client object pending delete
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+
+  // Invite state
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteClientName, setInviteClientName] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [generatedInvite, setGeneratedInvite] = useState(null); // { code, link }
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const [invites, setInvites] = useState([]);
+  const [showInviteList, setShowInviteList] = useState(false);
+
+  const fetchInvites = useCallback(async () => {
+    const { data } = await supabase
+      .from('invite_codes')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (data) setInvites(data);
+  }, []);
+
+  useEffect(() => {
+    fetchInvites();
+  }, [fetchInvites]);
+
+  async function createInvite() {
+    setInviteLoading(true);
+    const code = generateInviteCode();
+    const { error } = await supabase.from('invite_codes').insert({
+      code,
+      trainer_id: user.id,
+      client_name: inviteClientName.trim(),
+    });
+    if (error) {
+      console.error('Invite insert error:', error);
+      setInviteLoading(false);
+      return;
+    }
+    const link = `${window.location.origin}/?invite=${code}`;
+    setGeneratedInvite({ code, link });
+    setInviteLoading(false);
+    fetchInvites();
+  }
+
+  function closeInviteModal() {
+    setShowInviteModal(false);
+    setInviteClientName('');
+    setGeneratedInvite(null);
+    setInviteCopied(false);
+  }
+
+  async function copyInviteLink() {
+    if (!generatedInvite) return;
+    try {
+      await navigator.clipboard.writeText(generatedInvite.link);
+    } catch {
+      // Fallback for iOS / iframe / insecure context
+      const ta = document.createElement('textarea');
+      ta.value = generatedInvite.link;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setInviteCopied(true);
+    setTimeout(() => setInviteCopied(false), 2000);
+  }
+
+  async function deleteInvite(inviteId) {
+    await supabase.from('invite_codes').delete().eq('id', inviteId);
+    fetchInvites();
+  }
 
   function openDelete(client, e) {
     e.stopPropagation();
@@ -150,7 +231,48 @@ export default function TrainerDashboard({ onSelectClient }) {
     <div className="trainer-dashboard">
       <div className="trainer-dashboard-header">
         <h2 className="trainer-title">Klientky ({clients.length})</h2>
+        <div className="trainer-header-actions">
+          <button
+            className="trainer-invite-btn"
+            onClick={() => setShowInviteModal(true)}
+            title="Pozvat novou klientku"
+          >
+            + Pozvat
+          </button>
+          {invites.length > 0 && (
+            <button
+              className="trainer-invite-list-btn"
+              onClick={() => setShowInviteList(!showInviteList)}
+            >
+              Pozvánky ({invites.filter((i) => !i.used_by).length})
+            </button>
+          )}
+        </div>
       </div>
+
+      {showInviteList && invites.length > 0 && (
+        <div className="invite-list">
+          {invites.map((inv) => {
+            const expired = new Date(inv.expires_at) < new Date();
+            const used = !!inv.used_by;
+            return (
+              <div key={inv.id} className={`invite-list-item ${used ? 'used' : expired ? 'expired' : 'active'}`}>
+                <div className="invite-list-info">
+                  <span className="invite-list-name">{inv.client_name || inv.code}</span>
+                  <span className="invite-list-status">
+                    {used ? 'Použitá' : expired ? 'Vypršelá' : 'Čeká'}
+                  </span>
+                </div>
+                {!used && (
+                  <button className="invite-list-delete" onClick={() => deleteInvite(inv.id)}>
+                    ✕
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {clients.length > 0 && (
         <>
@@ -262,6 +384,62 @@ export default function TrainerDashboard({ onSelectClient }) {
                 {deleting ? 'Mažu...' : 'Ano, smazat'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showInviteModal && (
+        <div className="delete-modal-overlay" onClick={closeInviteModal}>
+          <div className="delete-modal invite-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Pozvat klientku</h3>
+            {!generatedInvite ? (
+              <>
+                <input
+                  type="text"
+                  placeholder="Jméno klientky (volitelné)"
+                  value={inviteClientName}
+                  onChange={(e) => setInviteClientName(e.target.value)}
+                  className="auth-input"
+                  style={{ marginBottom: 12 }}
+                />
+                <button
+                  className="trainer-bulk-btn trainer-bulk-btn-all"
+                  onClick={createInvite}
+                  disabled={inviteLoading}
+                  style={{ width: '100%' }}
+                >
+                  {inviteLoading ? 'Vytvářím...' : 'Vytvořit pozvánku'}
+                </button>
+              </>
+            ) : (
+              <div className="invite-result">
+                <p style={{ marginBottom: 8 }}>Pozvánka vytvořena! Pošli tento odkaz klientce:</p>
+                <div className="invite-link-box">
+                  <input
+                    type="text"
+                    value={generatedInvite.link}
+                    readOnly
+                    className="auth-input"
+                    style={{ fontSize: 13, marginBottom: 0 }}
+                    onClick={(e) => e.target.select()}
+                  />
+                </div>
+                <button
+                  className="trainer-bulk-btn trainer-bulk-btn-all"
+                  onClick={copyInviteLink}
+                  style={{ width: '100%', marginTop: 10 }}
+                >
+                  {inviteCopied ? 'Zkopírováno!' : 'Kopírovat odkaz'}
+                </button>
+                <button
+                  className="trainer-select-all-btn"
+                  onClick={closeInviteModal}
+                  style={{ width: '100%', marginTop: 8 }}
+                >
+                  Zavřít
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

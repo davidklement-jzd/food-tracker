@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function AuthPage() {
@@ -7,9 +7,33 @@ export default function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
+
+  // Extract just the code from a full URL or raw code
+  function parseInviteCode(value) {
+    if (!value) return '';
+    try {
+      const url = new URL(value);
+      return url.searchParams.get('invite') || value.trim();
+    } catch {
+      return value.trim();
+    }
+  }
+
+  // Read invite code from URL and auto-switch to registration
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('invite');
+    if (code) {
+      setInviteCode(code);
+      setIsRegister(true);
+      // Clean URL without reload
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -23,9 +47,19 @@ export default function AuthPage() {
         setLoading(false);
         return;
       }
-      const { error } = await signUp(email, password, displayName.trim());
+      if (!inviteCode.trim()) {
+        setError('Registrace vyžaduje pozvánkový kód od trenéra.');
+        setLoading(false);
+        return;
+      }
+      const { error } = await signUp(email, password, displayName.trim(), inviteCode.trim());
       if (error) {
-        setError(error.message);
+        // Supabase wraps trigger exceptions as generic "Database error saving new user"
+        if (error.message?.includes('Database error') || error.message?.includes('pozvánkový') || error.message?.includes('invite')) {
+          setError('Pozvánkový kód je neplatný, vypršel nebo už byl použit.');
+        } else {
+          setError(error.message);
+        }
       } else {
         setSuccess('Registrace proběhla. Zkontrolujte email pro potvrzení.');
       }
@@ -49,14 +83,24 @@ export default function AuthPage() {
 
         <form onSubmit={handleSubmit} className="auth-form">
           {isRegister && (
-            <input
-              type="text"
-              placeholder="Vaše jméno"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              className="auth-input"
-              autoComplete="name"
-            />
+            <>
+              <input
+                type="text"
+                placeholder="Pozvánkový kód"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(parseInviteCode(e.target.value))}
+                className="auth-input"
+                style={inviteCode ? { backgroundColor: '#f0f9f0', color: '#2d6a2e' } : undefined}
+              />
+              <input
+                type="text"
+                placeholder="Jméno a příjmení"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="auth-input"
+                autoComplete="name"
+              />
+            </>
           )}
           <input
             type="email"
