@@ -5,7 +5,7 @@ function round(val) {
   return Math.round(val * 10) / 10;
 }
 
-export default function MealSection({ meal, entries, onRemove, onToggleAdd, note, onNoteChange, onUpdateEntry, trainerComment, ownerId }) {
+export default function MealSection({ meal, entries, onRemove, onToggleAdd, onCopyMeal, onSaveTemplate, note, onNoteChange, onUpdateEntry, trainerComment, ownerId }) {
   const totalKcal = entries.reduce((s, e) => s + (e.kcal || 0), 0);
   const [editingNote, setEditingNote] = useState(false);
   const [editingEntryId, setEditingEntryId] = useState(null);
@@ -84,6 +84,16 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, note
           >
             📝
           </button>
+          {onCopyMeal && meal.id !== 'supplements' && (
+            <button className="meal-copy-btn" onClick={onCopyMeal} title="Kopírovat z jiného dne">
+              🔄
+            </button>
+          )}
+          {onSaveTemplate && entries.length >= 2 && meal.id !== 'supplements' && (
+            <button className="meal-copy-btn" onClick={() => onSaveTemplate(meal, entries)} title="Uložit jako šablonu">
+              💾
+            </button>
+          )}
           <button className="meal-add-btn" onClick={onToggleAdd} title="Přidat jídlo" aria-label="Přidat jídlo">
             <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
               <path d="M12 5v14M5 12h14" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />

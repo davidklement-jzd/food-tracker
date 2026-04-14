@@ -14,7 +14,9 @@ import FoodsDatabasePage from './components/FoodsDatabasePage';
 import WeightTracker from './components/WeightTracker';
 import ActivitySection from './components/ActivitySection';
 import ActivitySearchModal from './components/ActivitySearchModal';
+import CopyMealModal from './components/CopyMealModal';
 import { useActivityDiary } from './hooks/useActivityDiary';
+import { useTemplates } from './hooks/useTemplates';
 import './App.css';
 
 const MEALS = [
@@ -83,6 +85,9 @@ export default function App() {
   } = useActivityDiary(user?.id, selectedDate);
 
   const [activityModal, setActivityModal] = useState(false);
+  const [copyMealModal, setCopyMealModal] = useState(null); // meal id or null
+  const [saveTemplateData, setSaveTemplateData] = useState(null); // { meal, entries }
+  const { templates, saveTemplate, deleteTemplate } = useTemplates(user?.id);
 
   if (authLoading) {
     return (
@@ -280,6 +285,8 @@ export default function App() {
                   onRemove={(entryId) => removeEntry(meal.id, entryId)}
                   onUpdateEntry={(entryId, updated) => updateEntry(meal.id, entryId, updated)}
                   onToggleAdd={() => setModalMeal(meal.id)}
+                  onCopyMeal={() => setCopyMealModal(meal.id)}
+                  onSaveTemplate={(meal, entries) => setSaveTemplateData({ meal, entries })}
                   note={(dayData._notes || {})[meal.id] || ''}
                   onNoteChange={(text) => updateNote(meal.id, text)}
                   trainerComment={comments[meal.id]}
@@ -314,12 +321,66 @@ export default function App() {
           mealId={modalMeal}
           onAdd={(entry) => addEntry(modalMeal, entry)}
           onClose={() => setModalMeal(null)}
+          templates={templates}
+          onDeleteTemplate={deleteTemplate}
         />
       )}
       {activityModal && (
         <ActivitySearchModal
           onAdd={addActivity}
           onClose={() => setActivityModal(false)}
+        />
+      )}
+      {saveTemplateData && (
+        <div className="modal-overlay" onClick={() => setSaveTemplateData(null)}>
+          <div className="copy-meal-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 360 }}>
+            <div className="copy-meal-header">
+              <h3>Uložit šablonu</h3>
+              <button className="copy-meal-close" onClick={() => setSaveTemplateData(null)}>×</button>
+            </div>
+            <p style={{ fontSize: 13, color: '#888', margin: '0 0 12px' }}>
+              {saveTemplateData.entries.length} položek z {saveTemplateData.meal.label}
+            </p>
+            <input
+              type="text"
+              placeholder="Název šablony (např. Ranní kaše)"
+              className="auth-input"
+              id="template-name-input"
+              autoFocus
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter' && e.target.value.trim()) {
+                  await saveTemplate(e.target.value.trim(), saveTemplateData.entries);
+                  setSaveTemplateData(null);
+                }
+              }}
+            />
+            <button
+              className="copy-meal-confirm"
+              style={{ marginTop: 10 }}
+              onClick={async () => {
+                const input = document.getElementById('template-name-input');
+                if (input?.value.trim()) {
+                  await saveTemplate(input.value.trim(), saveTemplateData.entries);
+                  setSaveTemplateData(null);
+                }
+              }}
+            >
+              Uložit šablonu
+            </button>
+          </div>
+        </div>
+      )}
+      {copyMealModal && (
+        <CopyMealModal
+          userId={user.id}
+          currentDate={selectedDate}
+          targetMealId={copyMealModal}
+          onCopy={(entries) => {
+            for (const entry of entries) {
+              addEntry(copyMealModal, entry);
+            }
+          }}
+          onClose={() => setCopyMealModal(null)}
         />
       )}
       </>

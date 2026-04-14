@@ -6,7 +6,7 @@ import { useRecentFoods } from '../hooks/useRecentFoods';
 
 const BarcodeScanner = lazy(() => import('./BarcodeScanner'));
 
-export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null, onAdd, onClose }) {
+export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null, onAdd, onClose, templates = [], onDeleteTemplate }) {
   // "Kalorický dluh" (supplements) je ruční sekce — trenér ji vyplňuje sám,
   // nedávné potraviny tam jen zavazí.
   const recentEnabled = mealId !== 'supplements';
@@ -28,6 +28,7 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
   });
   const [createError, setCreateError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [showMyMeals, setShowMyMeals] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanLoading, setScanLoading] = useState(false);
   const [scanInfo, setScanInfo] = useState(null); // text pod formulářem ("Načteno z OFF" apod.)
@@ -471,7 +472,73 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
               {loading && <span className="modal-loading">...</span>}
             </div>
 
-            {recentEnabled && recentItems.length > 0 && query.trim().length < 2 && (
+            {query.trim().length < 2 && !showMyMeals && templates.length > 0 && (
+              <div className="modal-tab-row">
+                <button className="modal-tab active">🕒 Nedávné</button>
+                <button className="modal-tab" onClick={() => setShowMyMeals(true)}>🍽️ Moje jídla ({templates.length})</button>
+              </div>
+            )}
+
+            {query.trim().length < 2 && showMyMeals && (
+              <>
+                <div className="modal-tab-row">
+                  <button className="modal-tab" onClick={() => setShowMyMeals(false)}>🕒 Nedávné</button>
+                  <button className="modal-tab active">🍽️ Moje jídla</button>
+                </div>
+                <div className="modal-recent-section">
+                  {templates.map((t) => (
+                    <div
+                      key={t.id}
+                      className="template-card"
+                    >
+                      <div
+                        className="template-card-main"
+                        onClick={() => {
+                          const entries = t.items.map((item) => ({
+                            id: Date.now() + Math.random(),
+                            name: item.name,
+                            brand: item.brand || '',
+                            grams: item.grams,
+                            displayAmount: item.display_amount || `${item.grams}${item.unit || 'g'}`,
+                            kcal: item.kcal || 0,
+                            protein: item.protein || 0,
+                            carbs: item.carbs || 0,
+                            fat: item.fat || 0,
+                            fiber: item.fiber || 0,
+                            food_id: item.food_id || null,
+                            unit: item.unit || 'g',
+                            portions: null,
+                          }));
+                          for (const entry of entries) onAdd(entry);
+                          onClose();
+                        }}
+                      >
+                        <div className="template-card-info">
+                          <span className="template-card-name">{t.name}</span>
+                          <span className="template-card-meta">{t.items.length} položek · {Math.round(t.total_kcal)} kcal</span>
+                        </div>
+                      </div>
+                      <div className="template-card-actions">
+                        {onDeleteTemplate && (
+                          <button
+                            className="template-action-btn"
+                            onClick={() => onDeleteTemplate(t.id)}
+                            title="Smazat"
+                          >🗑</button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {templates.length === 0 && (
+                    <div style={{ textAlign: 'center', color: '#999', padding: '20px 0', fontSize: 14 }}>
+                      Zatím nemáte žádná uložená jídla.
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {!showMyMeals && recentEnabled && recentItems.length > 0 && query.trim().length < 2 && (
               <div className="modal-recent-section">
                 <div className="modal-recent-title">🕒 Nedávné</div>
                 {recentItems.map((r) => {

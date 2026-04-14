@@ -1,9 +1,12 @@
 import { useState, useCallback } from 'react';
 import { useClientDiary } from '../hooks/useTrainerData';
 import { useActivityDiary } from '../hooks/useActivityDiary';
+import { useTemplates } from '../hooks/useTemplates';
+import { useAuth } from '../contexts/AuthContext';
 import DailySummary from './DailySummary';
 import MealSection from './MealSection';
 import FoodSearchModal from './FoodSearchModal';
+import CopyMealModal from './CopyMealModal';
 import ActivitySection from './ActivitySection';
 import ActivitySearchModal from './ActivitySearchModal';
 import WeightTracker from './WeightTracker';
@@ -45,6 +48,10 @@ export default function TrainerClientDiary({ client, onBack }) {
   const [activityModal, setActivityModal] = useState(false);
   const [clientView, setClientView] = useState('diary'); // 'diary' | 'settings' | 'analysis'
   const [clientProfile, setClientProfile] = useState(client);
+  const [copyMealModal, setCopyMealModal] = useState(null);
+  const [saveTemplateData, setSaveTemplateData] = useState(null);
+  const { user } = useAuth();
+  const { templates, saveTemplate, deleteTemplate } = useTemplates(user?.id);
 
   const {
     dayData,
@@ -178,6 +185,8 @@ export default function TrainerClientDiary({ client, onBack }) {
                     onRemove={(entryId) => removeEntry(meal.id, entryId)}
                     onUpdateEntry={(entryId, updated) => updateEntry(meal.id, entryId, updated)}
                     onToggleAdd={() => setModalMeal(meal.id)}
+                    onCopyMeal={() => setCopyMealModal(meal.id)}
+                    onSaveTemplate={(meal, entries) => setSaveTemplateData({ meal, entries })}
                     note={(dayData._notes || {})[meal.id] || ''}
                     onNoteChange={(text) => updateNote(meal.id, text)}
                     ownerId={clientProfile.id}
@@ -221,6 +230,8 @@ export default function TrainerClientDiary({ client, onBack }) {
           targetUserId={clientProfile.id}
           onAdd={(entry) => addEntry(modalMeal, entry)}
           onClose={() => setModalMeal(null)}
+          templates={templates}
+          onDeleteTemplate={deleteTemplate}
         />
       )}
       {activityModal && (
@@ -228,6 +239,58 @@ export default function TrainerClientDiary({ client, onBack }) {
           onAdd={addActivity}
           onClose={() => setActivityModal(false)}
         />
+      )}
+      {copyMealModal && (
+        <CopyMealModal
+          userId={clientProfile.id}
+          currentDate={selectedDate}
+          targetMealId={copyMealModal}
+          onCopy={(entries) => {
+            for (const entry of entries) {
+              addEntry(copyMealModal, entry);
+            }
+          }}
+          onClose={() => setCopyMealModal(null)}
+        />
+      )}
+      {saveTemplateData && (
+        <div className="modal-overlay" onClick={() => setSaveTemplateData(null)}>
+          <div className="copy-meal-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 360 }}>
+            <div className="copy-meal-header">
+              <h3>Uložit šablonu</h3>
+              <button className="copy-meal-close" onClick={() => setSaveTemplateData(null)}>×</button>
+            </div>
+            <p style={{ fontSize: 13, color: '#888', margin: '0 0 12px' }}>
+              {saveTemplateData.entries.length} položek z {saveTemplateData.meal.label}
+            </p>
+            <input
+              type="text"
+              placeholder="Název šablony (např. Ranní kaše)"
+              className="auth-input"
+              id="template-name-input-trainer"
+              autoFocus
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter' && e.target.value.trim()) {
+                  await saveTemplate(e.target.value.trim(), saveTemplateData.entries);
+                  setSaveTemplateData(null);
+                }
+              }}
+            />
+            <button
+              className="copy-meal-confirm"
+              style={{ marginTop: 10 }}
+              onClick={async () => {
+                const input = document.getElementById('template-name-input-trainer');
+                if (input?.value.trim()) {
+                  await saveTemplate(input.value.trim(), saveTemplateData.entries);
+                  setSaveTemplateData(null);
+                }
+              }}
+            >
+              Uložit šablonu
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
