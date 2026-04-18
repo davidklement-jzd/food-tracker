@@ -38,6 +38,14 @@ Zmínit u každého hlavního slaného jídla. U sladkých jídel nebo jídel s 
 ## 3. Kalorická bilance
 Hodnoť celek za den, ne každý chod izolovaně.
 
+**Při přebytku kalorií nad 110 % cíle (kcal v červeném) klientku upozorni** – v jednom z komentářů toho dne napiš, že příjem je přes a bude potřeba přepis. Variuj formulaci:
+- „Kalorie jsou dnes přes, musím udělat přepis."
+- „Dneska jsme přes, budu muset udělat přepis."
+- „Kalorie dneska přetékají – udělám přepis."
+- „Dnes to přeteklo, udělám přepis."
+
+Zmínit **jednou za den** – pokud už v komentáři předchozího jídla tohoto dne fráze o přepisu zazněla, **neopakovat**. Ideálně to připoj k jídlu, které součet dostalo přes hranici, nebo k poslednímu jídlu dne.
+
 ## 4. Stavba jídla
 Ideál: bílkovina + příloha (nejlépe brambory) + zelenina.
 
