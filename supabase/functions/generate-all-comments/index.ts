@@ -1,10 +1,10 @@
 import { SYSTEM_PROMPT } from "../_shared/styleGuide.ts";
 import {
   buildDayContextPrompt,
+  COMMENTABLE_MEAL_ORDER,
   corsHeadersFor,
   enforceAiDailyLimit,
   jsonResponse,
-  MEAL_ORDER,
   requireTrainer,
   safeNumber,
 } from "../_shared/http.ts";
@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
       // Which meals in this day have entries?
       const mealsWithEntries = new Set(entries.map((e) => e.meal_id));
 
-      for (const mealId of MEAL_ORDER) {
+      for (const mealId of COMMENTABLE_MEAL_ORDER) {
         if (!mealsWithEntries.has(mealId)) continue;
         if (commentsMap[mealId]) {
           skipped++;

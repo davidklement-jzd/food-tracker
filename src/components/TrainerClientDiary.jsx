@@ -84,7 +84,10 @@ export default function TrainerClientDiary({ client, onBack }) {
 
   const commentWholeDay = useCallback(async () => {
     setBulkLoading(true);
-    const mealsWithEntries = MEALS.filter((m) => (dayData[m.id] || []).length > 0 && !comments[m.id]);
+    // Kalorický dluh (supplements) je účetní úprava, ne jídlo – AI ho nekomentuje.
+    const mealsWithEntries = MEALS.filter(
+      (m) => m.id !== 'supplements' && (dayData[m.id] || []).length > 0 && !comments[m.id],
+    );
     for (const meal of mealsWithEntries) {
       await generateAiComment(meal.id, meal.label, clientProfile);
     }
@@ -197,7 +200,11 @@ export default function TrainerClientDiary({ client, onBack }) {
                     comment={comments[meal.id]}
                     hasEntries={(dayData[meal.id] || []).length > 0}
                     onSave={(text) => saveComment(meal.id, text)}
-                    onGenerateAi={() => generateAiComment(meal.id, meal.label, clientProfile)}
+                    onGenerateAi={
+                      meal.id === 'supplements'
+                        ? null
+                        : () => generateAiComment(meal.id, meal.label, clientProfile)
+                    }
                   />
                 </div>
               ))}

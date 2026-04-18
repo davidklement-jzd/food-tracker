@@ -79,13 +79,15 @@ export default function TrainerComment({ mealId, mealLabel, comment, hasEntries,
       <button className="trainer-comment-write" onClick={() => { setText(''); setEditing(true); }}>
         💬 Komentovat
       </button>
-      <button
-        className="trainer-comment-ai"
-        onClick={handleAi}
-        disabled={aiLoading}
-      >
-        {aiLoading ? '⏳ Generuji...' : '🤖 AI komentář'}
-      </button>
+      {onGenerateAi && (
+        <button
+          className="trainer-comment-ai"
+          onClick={handleAi}
+          disabled={aiLoading}
+        >
+          {aiLoading ? '⏳ Generuji...' : '🤖 AI komentář'}
+        </button>
+      )}
     </div>
   );
 }

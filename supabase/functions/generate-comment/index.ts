@@ -1,6 +1,6 @@
 import { SYSTEM_PROMPT } from "../_shared/styleGuide.ts";
 import {
-  ALLOWED_MEAL_IDS,
+  COMMENTABLE_MEAL_IDS,
   buildDayContextPrompt,
   corsHeadersFor,
   enforceAiDailyLimit,
@@ -46,8 +46,9 @@ Deno.serve(async (req) => {
     if (!isUuid(day_id)) {
       return jsonResponse({ error: "Invalid day_id" }, 400, cors);
     }
-    if (typeof meal_id !== "string" || !ALLOWED_MEAL_IDS.has(meal_id)) {
-      return jsonResponse({ error: "Invalid meal_id" }, 400, cors);
+    if (typeof meal_id !== "string" || !COMMENTABLE_MEAL_IDS.has(meal_id)) {
+      // Kalorický dluh (supplements) je ruční úprava trenéra, nekomentuje se.
+      return jsonResponse({ error: "Invalid or non-commentable meal_id" }, 400, cors);
     }
 
     // Fetch authoritative day state from DB (all entries + existing comments)

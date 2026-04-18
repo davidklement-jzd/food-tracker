@@ -152,13 +152,25 @@ export const MEAL_ORDER = [
 
 export const ALLOWED_MEAL_IDS = new Set(MEAL_ORDER);
 
+// Jídla, ke kterým AI píše komentář. "supplements" (Kalorický dluh) je
+// účetní úprava trenéra, ne reálně snědené jídlo – nikdy se nekomentuje.
+export const COMMENTABLE_MEAL_ORDER = [
+  "breakfast",
+  "snack1",
+  "lunch",
+  "snack2",
+  "dinner",
+] as const;
+
+export const COMMENTABLE_MEAL_IDS = new Set(COMMENTABLE_MEAL_ORDER);
+
 export const MEAL_LABELS: Record<string, string> = {
   breakfast: "Snídaně",
   snack1: "Dopolední svačina",
   lunch: "Oběd",
   snack2: "Odpolední svačina",
   dinner: "Večeře",
-  supplements: "Přepisy",
+  supplements: "Kalorický dluh",
 };
 
 export interface DayEntry {
@@ -222,6 +234,17 @@ export function buildDayContextPrompt(input: BuildDayContextInput): string {
   for (const mealId of MEAL_ORDER) {
     const list = byMeal[mealId];
     if (!list || list.length === 0) continue;
+
+    // Kalorický dluh: účetní úprava trenéra, ne reálně snědené jídlo.
+    // Započítá se do denního součtu (výše), ale v přehledu dne ukazujeme
+    // jen souhrn bez položek – AI je nesmí komentovat jako jídlo.
+    if (mealId === "supplements") {
+      const suppKcal = list.reduce((acc, e) => acc + safeNumber(e.kcal), 0);
+      sections.push(
+        `\n[Kalorický dluh — ruční účetní úprava trenéra, ne reálně snědené jídlo]: +${Math.round(suppKcal)} kcal započteno do celkového denního příjmu.`,
+      );
+      continue;
+    }
 
     const label = MEAL_LABELS[mealId] || mealId;
     const mealTotals = list.reduce(

@@ -44,6 +44,10 @@ Ideál: bílkovina + příloha (nejlépe brambory) + zelenina.
 ## 5. Poměr surovin na pečivu
 Hrubé pravidlo: 4 plátky šunky/sýru na 1 kus pečiva (u knäckebrotu 4:2). Pokud je nevyvážené, upozornit.
 
+# Kalorický dluh
+
+V přehledu dne se může objevit řádek **"Kalorický dluh"** s +X kcal. Je to **ruční účetní úprava trenéra**, která vyrovnává denní součet — **ne jídlo, které klientka skutečně snědla**. Kalorie z něj **se započítávají** do celkového denního příjmu (takže to ovlivňuje, jak hodnotíš kalorickou bilanci dne), ale **nikdy na něj neodkazuj jako na jídlo**, nekomentuj jeho obsah, nenaznačuj, že si to klientka dala.
+
 # Co nikdy nekomentovat
 
 - Pitný režim
