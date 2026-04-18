@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 
-// Lazy načtená kamera + dekodér čárových kódů (zxing-js).
-// Otevře video stream, čte EAN/UPC kódy, po prvním rozpoznání volá onDetected(code).
-// onClose = zavření overlay (např. křížek).
+// Lazy načtená kamera + dekodér čárových kódů.
+// Preferuje nativní `BarcodeDetector` (Chrome Android/desktop — ML Kit, rychlé
+// a spolehlivé), fallback na zxing-js (Safari iOS, Firefox).
+// onDetected(code) se zavolá po prvním rozpoznaném kódu; onClose zavře overlay.
+
+const FORMATS_NATIVE = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'];
 
 export default function BarcodeScanner({ onDetected, onClose }) {
   const videoRef = useRef(null);
-  const controlsRef = useRef(null);
+  const streamRef = useRef(null);
+  const zxingControlsRef = useRef(null);
+  const rafRef = useRef(null);
   const [error, setError] = useState(null);
   const [starting, setStarting] = useState(true);
 
@@ -15,7 +20,72 @@ export default function BarcodeScanner({ onDetected, onClose }) {
 
     async function start() {
       try {
-        // Dynamický import — zxing/browser se stáhne až tady.
+        // Constraints: zadní kamera + vyšší rozlišení + continuous autofocus.
+        // Android bez autofocus hintu často zamrzne na hyperfocal distance
+        // a čárové kódy zblízka jsou rozmazané → nic se nedekóduje.
+        const constraints = {
+          audio: false,
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            focusMode: { ideal: 'continuous' },
+            advanced: [{ focusMode: 'continuous' }],
+          },
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+
+        const video = videoRef.current;
+        video.srcObject = stream;
+        await video.play();
+
+        // Preferuj nativní BarcodeDetector (Android Chrome, desktop Chrome).
+        // Safari iOS ho nemá → fallback na zxing níže.
+        const hasNative =
+          'BarcodeDetector' in window &&
+          typeof window.BarcodeDetector.getSupportedFormats === 'function';
+
+        let nativeOk = false;
+        if (hasNative) {
+          try {
+            const supported = await window.BarcodeDetector.getSupportedFormats();
+            const formats = FORMATS_NATIVE.filter((f) => supported.includes(f));
+            if (formats.length > 0) {
+              const detector = new window.BarcodeDetector({ formats });
+              setStarting(false);
+              nativeOk = true;
+
+              const tick = async () => {
+                if (cancelled) return;
+                try {
+                  const codes = await detector.detect(video);
+                  if (codes && codes.length > 0) {
+                    const code = codes[0].rawValue;
+                    onDetected(code);
+                    return;
+                  }
+                } catch (_) {
+                  // občasné chyby detektoru ignorujeme, zkusíme další snímek
+                }
+                rafRef.current = requestAnimationFrame(tick);
+              };
+              rafRef.current = requestAnimationFrame(tick);
+            }
+          } catch (_) {
+            // nativní detektor selhal (např. nepodporovaný formát) → fallback
+            nativeOk = false;
+          }
+        }
+
+        if (nativeOk) return;
+
+        // Fallback: zxing-js z existujícího streamu.
         const { BrowserMultiFormatReader } = await import('@zxing/browser');
         const { BarcodeFormat, DecodeHintType } = await import('@zxing/library');
 
@@ -35,21 +105,9 @@ export default function BarcodeScanner({ onDetected, onClose }) {
           delayBetweenScanAttempts: 200,
         });
 
-        // Použít constraints místo deviceId — `listVideoInputDevices()` na iOS
-        // a v některých Androidech vrací prázdný seznam, dokud uživatel nepovolí
-        // kameru. `facingMode: environment` rovnou požádá o zadní kameru.
-        const constraints = {
-          audio: false,
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-        };
-
-        const controls = await reader.decodeFromConstraints(
-          constraints,
-          videoRef.current,
+        const controls = await reader.decodeFromStream(
+          stream,
+          video,
           (result, err, ctrls) => {
             if (cancelled) return;
             if (result) {
@@ -57,11 +115,10 @@ export default function BarcodeScanner({ onDetected, onClose }) {
               ctrls.stop();
               onDetected(code);
             }
-            // err = NotFoundException při každém prázdném snímku → ignorujeme
           }
         );
 
-        controlsRef.current = controls;
+        zxingControlsRef.current = controls;
         setStarting(false);
       } catch (e) {
         console.error('Scanner error:', e);
@@ -80,8 +137,12 @@ export default function BarcodeScanner({ onDetected, onClose }) {
 
     return () => {
       cancelled = true;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
       try {
-        controlsRef.current?.stop();
+        zxingControlsRef.current?.stop();
+      } catch (_) {}
+      try {
+        streamRef.current?.getTracks().forEach((t) => t.stop());
       } catch (_) {}
     };
   }, [onDetected]);
