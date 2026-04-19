@@ -64,7 +64,7 @@ export function useSupabaseDiary(userId, selectedDate) {
       const [entriesRes, notesRes, commentsRes] = await Promise.all([
         supabase
           .from('diary_entries')
-          .select('*, food:foods(is_liquid, portions)')
+          .select('*, food:foods(is_liquid, portions, default_grams)')
           .eq('day_id', dayRow.id)
           .order('sort_order', { ascending: true })
           .order('created_at', { ascending: true }),
@@ -95,10 +95,16 @@ export function useSupabaseDiary(userId, selectedDate) {
           : liquidByName
           ? 'ml'
           : entry.unit || 'g';
-        const derivedPortions =
-          (Array.isArray(entry.food?.portions) && entry.food.portions.length > 0
+        const foodPortions =
+          Array.isArray(entry.food?.portions) && entry.food.portions.length > 0
             ? entry.food.portions
-            : null) ||
+            : null;
+        const foodDefaultGrams = entry.food?.default_grams
+          ? Number(entry.food.default_grams)
+          : null;
+        const derivedPortions =
+          foodPortions ||
+          (foodDefaultGrams ? [{ label: 'Porce', grams: foodDefaultGrams }] : null) ||
           (derivedUnit === 'ml' ? DEFAULT_LIQUID_PORTIONS : null);
         // Stale display_amount: pokud máme ml, ale uloženo je "Ng", regeneruj.
         let displayAmount = entry.display_amount;
