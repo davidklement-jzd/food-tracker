@@ -325,12 +325,30 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
     fat: food.fat ?? '',
     fiber: food.fiber ?? '',
     isLiquid: food.is_liquid ?? false,
+    portions: Array.isArray(food.portions)
+      ? food.portions.map((p) => ({ label: p.label || '', grams: p.grams ?? '' }))
+      : [],
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   function set(k, v) {
     setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  function updatePortion(idx, key, value) {
+    setForm((f) => ({
+      ...f,
+      portions: f.portions.map((p, i) => (i === idx ? { ...p, [key]: value } : p)),
+    }));
+  }
+
+  function addPortion() {
+    setForm((f) => ({ ...f, portions: [...f.portions, { label: '', grams: '' }] }));
+  }
+
+  function removePortion(idx) {
+    setForm((f) => ({ ...f, portions: f.portions.filter((_, i) => i !== idx) }));
   }
 
   async function propagateToDiary(foodId, per100) {
@@ -388,6 +406,18 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
       return setError('Vláknina musí být číslo ≥ 0 nebo prázdné.');
     }
 
+    const portionsClean = [];
+    for (const p of form.portions) {
+      const label = (p.label || '').trim();
+      const g = parseFloat(String(p.grams ?? '').replace(',', '.'));
+      if (label === '' && !Number.isFinite(g)) continue;
+      if (label === '' || !Number.isFinite(g) || g <= 0) {
+        return setError('Porce: vyplň label i gramáž (>0), nebo řádek smaž.');
+      }
+      portionsClean.push({ label, grams: Math.round(g * 10) / 10 });
+    }
+    const portionsValue = portionsClean.length > 0 ? portionsClean : null;
+
     setSaving(true);
     try {
       const per100 = {
@@ -419,7 +449,7 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
             status: isTrainer ? 'approved' : 'pending',
             created_by: user.id,
             is_liquid: isLiquid,
-            portions: isLiquid ? liquidPortions : null,
+            portions: portionsValue || (isLiquid ? liquidPortions : null),
             ean: food.ean || null,
             ...(isTrainer ? { approved_by: user.id, approved_at: new Date().toISOString() } : {}),
           })
@@ -438,6 +468,7 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
         title,
         ...per100,
         is_liquid: !!form.isLiquid,
+        portions: portionsValue,
       };
 
       if (isTrainer && approve) {
@@ -566,6 +597,54 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
                   onChange={(e) => set('fiber', e.target.value)}
                 />
               </label>
+            </div>
+
+            <div className="modal-portions-editor">
+              <div className="modal-portions-header">
+                <span>Doporučené porce</span>
+                <button
+                  type="button"
+                  className="modal-portions-add"
+                  onClick={addPortion}
+                >
+                  + Přidat
+                </button>
+              </div>
+              {form.portions.length === 0 && (
+                <div className="modal-portions-empty">
+                  Žádné porce — klientka bude volit jen přesné gramy.
+                </div>
+              )}
+              {form.portions.map((p, i) => (
+                <div key={i} className="modal-portions-row">
+                  <input
+                    type="text"
+                    placeholder="Název (např. 1 kus)"
+                    value={p.label}
+                    onChange={(e) => updatePortion(i, 'label', e.target.value)}
+                    className="modal-portions-label"
+                  />
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="g"
+                    value={p.grams}
+                    onChange={(e) => updatePortion(i, 'grams', e.target.value)}
+                    className="modal-portions-grams"
+                  />
+                  <span className="modal-portions-unit">
+                    {form.isLiquid ? 'ml' : 'g'}
+                  </span>
+                  <button
+                    type="button"
+                    className="modal-portions-remove"
+                    onClick={() => removePortion(i)}
+                    title="Smazat"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
             </div>
 
             {error && <div className="modal-create-error">{error}</div>}

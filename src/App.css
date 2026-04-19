@@ -1657,6 +1657,77 @@ html, body {
   margin-top: 0;
 }
 
+.modal-portions-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #e5e5e5;
+}
+
+.modal-portions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: #555;
+  font-weight: 600;
+}
+
+.modal-portions-add {
+  background: #2e7d32;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.modal-portions-add:hover {
+  background: #256428;
+}
+
+.modal-portions-empty {
+  font-size: 0.8rem;
+  color: #888;
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.modal-portions-row {
+  display: grid;
+  grid-template-columns: 1fr 70px auto auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.modal-portions-label,
+.modal-portions-grams {
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.modal-portions-unit {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.modal-portions-remove {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  color: #c33;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+
 /* ===== Foods Database Page ===== */
 .foods-db-page {
   max-width: 900px;
