@@ -35,6 +35,9 @@ export default function TrainerComment({ mealId, mealLabel, comment, hasEntries,
           rows={2}
           autoFocus
           maxLength={250}
+          lang="cs"
+          autoCorrect="off"
+          autoCapitalize="sentences"
         />
         <div className="trainer-comment-footer">
           <span className="trainer-comment-chars">{text.length}/250</span>

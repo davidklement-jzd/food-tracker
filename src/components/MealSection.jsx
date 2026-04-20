@@ -8,10 +8,21 @@ function round(val) {
 export default function MealSection({ meal, entries, onRemove, onToggleAdd, onCopyMeal, onSaveTemplate, note, onNoteChange, onUpdateEntry, trainerComment, ownerId }) {
   const totalKcal = entries.reduce((s, e) => s + (e.kcal || 0), 0);
   const [editingNote, setEditingNote] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
   const [editingEntryId, setEditingEntryId] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [editUnit, setEditUnit] = useState('g');
   const [editPortions, setEditPortions] = useState(null);
+
+  function openNoteEdit() {
+    setNoteDraft(note || '');
+    setEditingNote(true);
+  }
+
+  function saveNoteAndClose() {
+    if ((noteDraft || '') !== (note || '')) onNoteChange(noteDraft);
+    setEditingNote(false);
+  }
 
   function startEditAmount(entry) {
     setEditingEntryId(entry.id);
@@ -79,7 +90,7 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, onCo
         <div className="meal-actions">
           <button
             className={`meal-note-btn ${note ? 'has-note' : ''}`}
-            onClick={() => setEditingNote(!editingNote)}
+            onClick={() => editingNote ? saveNoteAndClose() : openNoteEdit()}
             title="Poznámka"
           >
             📝
@@ -171,22 +182,26 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, onCo
         <div className="meal-note">
           <textarea
             placeholder="Napište poznámku k tomuto jídlu..."
-            value={note || ''}
-            onChange={(e) => onNoteChange(e.target.value)}
+            value={noteDraft}
+            onChange={(e) => setNoteDraft(e.target.value)}
+            onBlur={saveNoteAndClose}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                setEditingNote(false);
+                saveNoteAndClose();
               }
             }}
             rows={2}
             autoFocus
+            lang="cs"
+            autoCorrect="off"
+            autoCapitalize="sentences"
           />
         </div>
       )}
       {note && !editingNote && (
         <div className="meal-note-preview">
-          <span onClick={() => setEditingNote(true)}>📝 {note}</span>
+          <span onClick={openNoteEdit}>📝 {note}</span>
           <button
             className="entry-remove"
             onClick={() => onNoteChange('')}
