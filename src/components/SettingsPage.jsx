@@ -27,6 +27,20 @@ export default function SettingsPage({ onBack, targetUserId, targetProfile, onPr
   );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
+  const [largeText, setLargeText] = useState(
+    () => typeof window !== 'undefined' && localStorage.getItem('large_text') === '1'
+  );
+
+  function toggleLargeText(next) {
+    setLargeText(next);
+    if (next) {
+      localStorage.setItem('large_text', '1');
+      document.body.classList.add('large-text');
+    } else {
+      localStorage.removeItem('large_text');
+      document.body.classList.remove('large-text');
+    }
+  }
 
   function handleGoalChange(key, value) {
     setGoals((prev) => ({ ...prev, [key]: value === '' ? '' : Number(value) }));
@@ -199,6 +213,20 @@ export default function SettingsPage({ onBack, targetUserId, targetProfile, onPr
               </div>
             ))}
           </div>
+
+          {!isEditingOther && (
+            <div className="settings-section">
+              <h3>Vzhled</h3>
+              <label className="settings-checkbox">
+                <input
+                  type="checkbox"
+                  checked={largeText}
+                  onChange={(e) => toggleLargeText(e.target.checked)}
+                />
+                <span>Větší písmo</span>
+              </label>
+            </div>
+          )}
 
           {message && (
             <div className={`settings-message ${message.type}`}>

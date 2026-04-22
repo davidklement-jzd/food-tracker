@@ -1,5 +1,31 @@
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap');
 
+
+:root {
+  --text-11: 11px;
+  --text-12: 12px;
+  --text-13: 13px;
+  --text-14: 14px;
+  --text-15: 15px;
+  --text-16: 16px;
+  --text-18: 18px;
+  --text-20: 20px;
+  --text-22: 22px;
+  --text-24: 24px;
+  --text-28: 28px;
+}
+
+/* Toggle "Větší písmo" v nastavení: zvětší jen body text (11-16 px),
+   nadpisy 18+ nechá být, aby se nerozhasily karty a tlačítka. */
+body.large-text {
+  --text-11: 13px;
+  --text-12: 14px;
+  --text-13: 15px;
+  --text-14: 16px;
+  --text-15: 16px;
+  --text-16: 17px;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -47,7 +73,7 @@ html, body {
 
 .logo-text {
   font-weight: 700;
-  font-size: 18px;
+  font-size: var(--text-18);
   color: #333;
 }
 
@@ -64,7 +90,7 @@ html, body {
   border-radius: 20px;
   border: 1px solid #e0e0e0;
   background: #fff;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 500;
   font-family: inherit;
   color: #555;
@@ -79,7 +105,7 @@ html, body {
 }
 
 .user-name {
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
   color: #555;
 }
@@ -91,7 +117,7 @@ html, body {
 .user-name-btn {
   background: none;
   border: none;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
   color: #555;
   cursor: pointer;
@@ -128,7 +154,7 @@ html, body {
   padding: 10px 16px;
   border: none;
   background: none;
-  font-size: 13px;
+  font-size: var(--text-13);
   font-family: inherit;
   color: #555;
   cursor: pointer;
@@ -165,7 +191,7 @@ html, body {
 }
 
 .search-icon {
-  font-size: 14px;
+  font-size: var(--text-14);
   margin-right: 8px;
   opacity: 0.5;
 }
@@ -174,7 +200,7 @@ html, body {
   flex: 1;
   border: none;
   background: transparent;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-family: inherit;
   outline: none;
 }
@@ -182,14 +208,14 @@ html, body {
 .search-clear {
   background: none;
   border: none;
-  font-size: 16px;
+  font-size: var(--text-16);
   color: #999;
   cursor: pointer;
   padding: 0 4px;
 }
 
 .search-loading {
-  font-size: 14px;
+  font-size: var(--text-14);
   color: #999;
 }
 
@@ -245,7 +271,7 @@ html, body {
 }
 
 .thumb-placeholder {
-  font-size: 20px;
+  font-size: var(--text-20);
   opacity: 0.3;
 }
 
@@ -256,7 +282,7 @@ html, body {
 
 .result-name {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--text-14);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -268,7 +294,7 @@ html, body {
 }
 
 .result-kcal {
-  font-size: 13px;
+  font-size: var(--text-13);
   color: #888;
 }
 
@@ -289,7 +315,7 @@ html, body {
 }
 
 .meal-bar-label {
-  font-size: 13px;
+  font-size: var(--text-13);
   font-weight: 600;
   color: #888;
   flex-shrink: 0;
@@ -306,7 +332,7 @@ html, body {
   border-radius: 12px;
   border: 1px solid #ddd;
   background: #fff;
-  font-size: 12px;
+  font-size: var(--text-12);
   font-family: inherit;
   color: #666;
   cursor: pointer;
@@ -336,7 +362,7 @@ html, body {
   padding: 4px 6px;
   border: 1px solid #ddd;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--text-13);
   text-align: right;
   font-family: inherit;
 }
@@ -345,7 +371,7 @@ html, body {
   padding: 4px 4px;
   border: 1px solid #ddd;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: var(--text-12);
   font-family: inherit;
   color: #555;
   background: #fff;
@@ -360,7 +386,7 @@ html, body {
   background: #4caf50;
   color: #fff;
   border: none;
-  font-size: 20px;
+  font-size: var(--text-20);
   line-height: 1;
   cursor: pointer;
   display: flex;
@@ -396,7 +422,7 @@ html, body {
 .date-btn {
   background: none;
   border: 1px solid #e0e0e0;
-  font-size: 18px;
+  font-size: var(--text-18);
   font-weight: 500;
   font-family: inherit;
   color: #555;
@@ -416,7 +442,7 @@ html, body {
 }
 
 .date-current {
-  font-size: 16px;
+  font-size: var(--text-16);
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -424,7 +450,7 @@ html, body {
 }
 
 .date-icon {
-  font-size: 18px;
+  font-size: var(--text-18);
 }
 
 .today-btn {
@@ -433,7 +459,7 @@ html, body {
   background: #4caf50;
   color: #fff;
   border-radius: 14px;
-  font-size: 12px;
+  font-size: var(--text-12);
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -458,7 +484,7 @@ html, body {
 
 /* ===== MEAL SECTIONS ===== */
 .intake-label {
-  font-size: 15px;
+  font-size: var(--text-15);
   font-weight: 600;
   color: #555;
   margin-bottom: 12px;
@@ -466,7 +492,7 @@ html, body {
 }
 
 .activity-label {
-  font-size: 15px;
+  font-size: var(--text-15);
   font-weight: 600;
   color: #555;
   margin-top: 20px;
@@ -475,7 +501,7 @@ html, body {
 }
 
 .modal-amount-unit-text {
-  font-size: 14px;
+  font-size: var(--text-14);
   color: #555;
   padding: 0 8px;
 }
@@ -502,14 +528,14 @@ html, body {
 }
 
 .meal-name {
-  font-size: 15px;
+  font-size: var(--text-15);
   font-weight: 600;
   color: #333;
   flex: 1;
 }
 
 .meal-kcal {
-  font-size: 13px;
+  font-size: var(--text-13);
   color: #888;
 }
 
@@ -526,7 +552,7 @@ html, body {
   color: #fff;
   border: none;
   padding: 0;
-  font-size: 20px;
+  font-size: var(--text-20);
   line-height: 1;
   cursor: pointer;
   display: flex;
@@ -570,7 +596,7 @@ html, body {
 }
 
 .entry-name {
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 500;
   display: block;
   white-space: nowrap;
@@ -587,7 +613,7 @@ html, body {
 }
 
 .entry-amount {
-  font-size: 12px;
+  font-size: var(--text-12);
   color: #999;
 }
 
@@ -606,7 +632,7 @@ html, body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--text-12);
   color: #999;
 }
 
@@ -615,7 +641,7 @@ html, body {
   padding: 2px 4px;
   border: 1px solid #4caf50;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: var(--text-12);
   font-family: inherit;
   text-align: right;
   outline: none;
@@ -625,7 +651,7 @@ html, body {
   padding: 2px 4px;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: var(--text-11);
   font-family: inherit;
   color: #555;
   outline: none;
@@ -638,14 +664,14 @@ html, body {
   border: none;
   border-radius: 4px;
   padding: 2px 6px;
-  font-size: 12px;
+  font-size: var(--text-12);
   cursor: pointer;
 }
 
 .entry-macros {
   display: flex;
   gap: 10px;
-  font-size: 12px;
+  font-size: var(--text-12);
   color: #777;
   flex-shrink: 0;
 }
@@ -660,7 +686,7 @@ html, body {
   background: none;
   border: none;
   color: #ccc;
-  font-size: 18px;
+  font-size: var(--text-18);
   cursor: pointer;
   padding: 0 2px;
   line-height: 1;
@@ -678,7 +704,7 @@ html, body {
   border-radius: 50%;
   background: #f5f5f5;
   border: 1px solid #e0e0e0;
-  font-size: 14px;
+  font-size: var(--text-14);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -701,7 +727,7 @@ html, body {
   border-radius: 50%;
   background: #f5f5f5;
   border: 1px solid #e0e0e0;
-  font-size: 14px;
+  font-size: var(--text-14);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -734,13 +760,13 @@ html, body {
 
 .copy-meal-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--text-18);
 }
 
 .copy-meal-close {
   background: none;
   border: none;
-  font-size: 22px;
+  font-size: var(--text-22);
   cursor: pointer;
   color: #999;
   padding: 4px 8px;
@@ -765,17 +791,17 @@ html, body {
   background: #fff;
   cursor: pointer;
   min-width: 48px;
-  font-size: 12px;
+  font-size: var(--text-12);
   transition: all 0.15s;
 }
 
 .copy-date-chip .chip-top {
   font-weight: 600;
-  font-size: 11px;
+  font-size: var(--text-11);
 }
 
 .copy-date-chip .chip-bottom {
-  font-size: 11px;
+  font-size: var(--text-11);
   color: #888;
 }
 
@@ -794,7 +820,7 @@ html, body {
   text-align: center;
   color: #999;
   padding: 20px 0;
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .copy-meal-list {
@@ -828,11 +854,11 @@ html, body {
 
 .copy-meal-name {
   font-weight: 500;
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .copy-meal-meta {
-  font-size: 12px;
+  font-size: var(--text-12);
   color: #888;
 }
 
@@ -848,7 +874,7 @@ html, body {
   justify-content: space-between;
   align-items: center;
   padding: 4px 0;
-  font-size: 13px;
+  font-size: var(--text-13);
   border-bottom: 1px solid #f0f0f0;
 }
 
@@ -884,7 +910,7 @@ html, body {
   background: #4CAF50;
   color: #fff;
   border: none;
-  font-size: 15px;
+  font-size: var(--text-15);
   font-weight: 600;
   cursor: pointer;
 }
@@ -907,7 +933,7 @@ html, body {
   border: none;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
-  font-size: 13px;
+  font-size: var(--text-13);
   font-weight: 500;
   color: #999;
   cursor: pointer;
@@ -943,7 +969,7 @@ html, body {
   margin-top: 4px;
   background: #f7f7f7;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .template-rescale-label {
@@ -955,13 +981,13 @@ html, body {
   padding: 6px 8px;
   border: 1px solid #ddd;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: var(--text-14);
   text-align: right;
 }
 
 .template-rescale-unit {
   color: #888;
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .template-rescale-confirm {
@@ -972,7 +998,7 @@ html, body {
   border: none;
   background: #4caf50;
   color: white;
-  font-size: 14px;
+  font-size: var(--text-14);
   cursor: pointer;
 }
 
@@ -999,11 +1025,11 @@ html, body {
 
 .template-card-name {
   font-weight: 500;
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .template-card-meta {
-  font-size: 12px;
+  font-size: var(--text-12);
   color: #888;
 }
 
@@ -1020,7 +1046,7 @@ html, body {
   border-radius: 8px;
   border: none;
   background: none;
-  font-size: 14px;
+  font-size: var(--text-14);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1034,7 +1060,7 @@ html, body {
 .template-action-btn.rescale {
   background: #eef5ff;
   border: 1px solid #cfe0ff;
-  font-size: 16px;
+  font-size: var(--text-16);
 }
 
 .template-action-btn.rescale:hover {
@@ -1052,7 +1078,7 @@ html, body {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: var(--text-13);
   font-family: inherit;
   resize: vertical;
   outline: none;
@@ -1068,7 +1094,7 @@ html, body {
 .meal-note-preview {
   padding: 8px 16px 10px;
   border-top: 1px solid #f0f0f0;
-  font-size: 13px;
+  font-size: var(--text-13);
   color: #888;
   transition: background 0.15s;
   display: flex;
@@ -1115,18 +1141,18 @@ html, body {
 }
 
 .ring-pct {
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
 }
 
 .ring-kcal {
-  font-size: 22px;
+  font-size: var(--text-22);
   font-weight: 700;
   color: #333;
 }
 
 .ring-goal {
-  font-size: 12px;
+  font-size: var(--text-12);
   color: #999;
 }
 
@@ -1145,13 +1171,13 @@ html, body {
 }
 
 .macro-label {
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
   color: #555;
 }
 
 .macro-pct {
-  font-size: 12px;
+  font-size: var(--text-12);
   font-weight: 700;
   padding: 2px 10px;
   border-radius: 10px;
@@ -1177,13 +1203,13 @@ html, body {
 }
 
 .macro-val {
-  font-size: 13px;
+  font-size: var(--text-13);
   font-weight: 700;
   color: #333;
 }
 
 .macro-of {
-  font-size: 12px;
+  font-size: var(--text-12);
   color: #999;
 }
 
@@ -1221,7 +1247,7 @@ html, body {
 }
 
 .modal-title {
-  font-size: 16px;
+  font-size: var(--text-16);
   font-weight: 700;
   color: #333;
 }
@@ -1229,7 +1255,7 @@ html, body {
 .modal-close {
   background: none;
   border: none;
-  font-size: 24px;
+  font-size: var(--text-24);
   color: #999;
   cursor: pointer;
   padding: 0 4px;
@@ -1249,7 +1275,7 @@ html, body {
 }
 
 .modal-search-icon {
-  font-size: 16px;
+  font-size: var(--text-16);
   opacity: 0.4;
 }
 
@@ -1257,13 +1283,13 @@ html, body {
   flex: 1;
   border: none;
   outline: none;
-  font-size: 16px;
+  font-size: var(--text-16);
   font-family: inherit;
   background: transparent;
 }
 
 .modal-loading {
-  font-size: 14px;
+  font-size: var(--text-14);
   color: #999;
 }
 
@@ -1284,7 +1310,7 @@ html, body {
 
 .modal-recent-title {
   padding: 10px 20px 6px;
-  font-size: 12px;
+  font-size: var(--text-12);
   font-weight: 600;
   color: #888;
   text-transform: uppercase;
@@ -1318,7 +1344,7 @@ html, body {
 }
 
 .modal-result-name {
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 500;
   color: #333;
   flex: 1;
@@ -1335,7 +1361,7 @@ html, body {
 }
 
 .modal-result-kcal {
-  font-size: 13px;
+  font-size: var(--text-13);
   color: #888;
   flex-shrink: 0;
 }
@@ -1344,7 +1370,7 @@ html, body {
   padding: 24px 20px;
   text-align: center;
   color: #999;
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 /* Modal detail (after selecting a food) */
@@ -1356,20 +1382,20 @@ html, body {
 }
 
 .modal-detail-name {
-  font-size: 18px;
+  font-size: var(--text-18);
   font-weight: 700;
   color: #333;
   margin-bottom: 4px;
 }
 
 .modal-detail-brand {
-  font-size: 14px;
+  font-size: var(--text-14);
   color: #999;
   margin-bottom: 4px;
 }
 
 .modal-detail-kcal {
-  font-size: 14px;
+  font-size: var(--text-14);
   color: #888;
   margin-bottom: 20px;
 }
@@ -1386,7 +1412,7 @@ html, body {
   padding: 10px 12px;
   border: 1px solid #ddd;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: var(--text-16);
   font-family: inherit;
   text-align: center;
   outline: none;
@@ -1398,7 +1424,7 @@ html, body {
 }
 
 .modal-amount-x {
-  font-size: 16px;
+  font-size: var(--text-16);
   color: #999;
 }
 
@@ -1407,7 +1433,7 @@ html, body {
   padding: 10px 12px;
   border: 1px solid #ddd;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: var(--text-16);
   font-family: inherit;
   color: #555;
   background: #fff;
@@ -1420,7 +1446,7 @@ html, body {
 }
 
 .modal-amount-label {
-  font-size: 13px;
+  font-size: var(--text-13);
   font-weight: 600;
   color: #888;
   margin-bottom: 8px;
@@ -1434,7 +1460,7 @@ html, body {
 }
 
 .modal-preview-total {
-  font-size: 15px;
+  font-size: var(--text-15);
   color: #333;
   margin-bottom: 4px;
 }
@@ -1442,7 +1468,7 @@ html, body {
 .modal-preview-macros {
   display: flex;
   gap: 12px;
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .modal-detail-actions {
@@ -1456,7 +1482,7 @@ html, body {
   border: 1px solid #ddd;
   border-radius: 10px;
   background: #fff;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
   font-family: inherit;
   color: #555;
@@ -1474,7 +1500,7 @@ html, body {
   border: none;
   border-radius: 10px;
   background: #4caf50;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
   font-family: inherit;
   color: #fff;
@@ -1510,7 +1536,7 @@ html, body {
   border-radius: 10px;
   background: #e3f2fd;
   color: #0d47a1;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -1531,7 +1557,7 @@ html, body {
   border-radius: 8px;
   background: #e3f2fd;
   color: #0d47a1;
-  font-size: 12px;
+  font-size: var(--text-12);
   margin-bottom: 8px;
 }
 
@@ -1576,7 +1602,7 @@ html, body {
 
 .scanner-status {
   color: #fff;
-  font-size: 14px;
+  font-size: var(--text-14);
   text-align: center;
   max-width: 80vw;
 }
@@ -1591,7 +1617,7 @@ html, body {
   border-radius: 24px;
   background: transparent;
   color: #fff;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-family: inherit;
   cursor: pointer;
 }
@@ -1607,7 +1633,7 @@ html, body {
   border-radius: 10px;
   background: #f1f8f2;
   color: #2e7d32;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -1637,7 +1663,7 @@ html, body {
   border: 1px solid #ddd;
   border-radius: 8px;
   background: #fff;
-  font-size: 13px;
+  font-size: var(--text-13);
   font-weight: 500;
   font-family: inherit;
   color: #666;
@@ -1658,7 +1684,7 @@ html, body {
 .modal-create-label {
   display: flex;
   flex-direction: column;
-  font-size: 12px;
+  font-size: var(--text-12);
   color: #666;
   gap: 4px;
 }
@@ -1667,7 +1693,7 @@ html, body {
   padding: 10px 12px;
   border: 1px solid #ddd;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: var(--text-16);
   font-family: inherit;
   color: #222;
 }
@@ -1740,18 +1766,18 @@ html, body {
 
 .portion-suggestion-title {
   font-weight: 600;
-  font-size: 15px;
+  font-size: var(--text-15);
 }
 
 .portion-suggestion-author {
-  font-size: 12px;
+  font-size: var(--text-12);
   color: #666;
 }
 
 .portion-suggestion-row {
   display: flex;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--text-13);
   line-height: 1.5;
   align-items: baseline;
 }
@@ -1791,7 +1817,7 @@ html, body {
   border: 1px dashed #bbb;
   background: #fafafa;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--text-13);
   color: #555;
   cursor: pointer;
 }
@@ -1809,7 +1835,7 @@ html, body {
 }
 
 .portion-suggest-hint {
-  font-size: 12px;
+  font-size: var(--text-12);
   color: #667;
   margin-top: 8px;
   font-style: italic;
@@ -1912,7 +1938,7 @@ html, body {
   border: 1px solid #ddd;
   border-radius: 8px;
   background: #fff;
-  font-size: 13px;
+  font-size: var(--text-13);
   font-family: inherit;
   cursor: pointer;
 }
@@ -1922,7 +1948,7 @@ html, body {
 }
 
 .foods-db-title {
-  font-size: 22px;
+  font-size: var(--text-22);
   font-weight: 700;
   margin: 0;
   color: #222;
@@ -1940,7 +1966,7 @@ html, body {
   border: 1px solid #ddd;
   border-radius: 20px;
   background: #fff;
-  font-size: 13px;
+  font-size: var(--text-13);
   font-family: inherit;
   color: #555;
   cursor: pointer;
@@ -1967,7 +1993,7 @@ html, body {
   padding: 12px 14px;
   border: 1px solid #ddd;
   border-radius: 10px;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-family: inherit;
   box-sizing: border-box;
 }
@@ -1990,7 +2016,7 @@ html, body {
   border-radius: 10px;
   background: #e3f2fd;
   color: #0d47a1;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -2013,7 +2039,7 @@ html, body {
   border-radius: 10px;
   background: #f0faf0;
   color: #2e7d32;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -2042,7 +2068,7 @@ html, body {
   padding: 30px;
   text-align: center;
   color: #888;
-  font-size: 14px;
+  font-size: var(--text-14);
   background: #fafafa;
   border-radius: 10px;
 }
@@ -2078,7 +2104,7 @@ html, body {
 }
 
 .foods-db-row-title {
-  font-size: 15px;
+  font-size: var(--text-15);
   font-weight: 600;
   color: #222;
   margin-bottom: 4px;
@@ -2089,7 +2115,7 @@ html, body {
 }
 
 .foods-db-status {
-  font-size: 11px;
+  font-size: var(--text-11);
   font-weight: 500;
   padding: 2px 8px;
   border-radius: 10px;
@@ -2116,7 +2142,7 @@ html, body {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  font-size: 12px;
+  font-size: var(--text-12);
   color: #666;
 }
 
@@ -2144,7 +2170,7 @@ html, body {
   border: 1px solid #ddd;
   border-radius: 6px;
   background: #fff;
-  font-size: 14px;
+  font-size: var(--text-14);
   cursor: pointer;
   font-family: inherit;
 }
@@ -2174,7 +2200,7 @@ html, body {
   border-radius: 8px;
   background: #fdecea;
   color: #b71c1c;
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 /* ===== RESPONSIVE ===== */
@@ -2226,11 +2252,11 @@ html, body {
 
   .header-action-btn {
     padding: 8px 16px;
-    font-size: 14px;
+    font-size: var(--text-14);
   }
 
   .user-name-btn {
-    font-size: 13px;
+    font-size: var(--text-13);
   }
 
   .search-container {
@@ -2244,11 +2270,11 @@ html, body {
 
   .date-btn {
     padding: 8px 12px;
-    font-size: 13px;
+    font-size: var(--text-13);
   }
 
   .date-current {
-    font-size: 14px;
+    font-size: var(--text-14);
     text-align: center;
   }
 
@@ -2266,7 +2292,7 @@ html, body {
     width: 100%;
     padding: 2px 0 0;
     gap: 6px;
-    font-size: 11px;
+    font-size: var(--text-11);
   }
 
   .entry-remove {
@@ -2287,7 +2313,7 @@ html, body {
 
   .intake-label,
   .activity-label {
-    font-size: 14px;
+    font-size: var(--text-14);
   }
 
   .settings-page,
@@ -2314,12 +2340,12 @@ html, body {
 
   .settings-header h2,
   .analysis-header h2 {
-    font-size: 16px;
+    font-size: var(--text-16);
     word-break: break-word;
   }
 
   .settings-field label {
-    font-size: 13px;
+    font-size: var(--text-13);
   }
 
   .analysis-chart-container {
@@ -2329,11 +2355,11 @@ html, body {
   .analysis-legend {
     flex-wrap: wrap;
     gap: 8px 16px;
-    font-size: 11px;
+    font-size: var(--text-11);
   }
 
   .analysis-section h3 {
-    font-size: 15px;
+    font-size: var(--text-15);
   }
 
   .trainer-client-header {
@@ -2361,7 +2387,7 @@ html, body {
     flex: 1;
     text-align: center;
     padding: 10px 16px;
-    font-size: 14px;
+    font-size: var(--text-14);
   }
 
   .trainer-bulk-actions {
@@ -2390,14 +2416,14 @@ html, body {
 }
 
 .auth-title {
-  font-size: 28px;
+  font-size: var(--text-28);
   font-weight: 700;
   color: #333;
   margin-bottom: 4px;
 }
 
 .auth-subtitle {
-  font-size: 16px;
+  font-size: var(--text-16);
   color: #888;
   margin-bottom: 28px;
 }
@@ -2412,7 +2438,7 @@ html, body {
   padding: 12px 16px;
   border: 1px solid #e0e0e0;
   border-radius: 10px;
-  font-size: 15px;
+  font-size: var(--text-15);
   font-family: inherit;
   outline: none;
   transition: border-color 0.2s;
@@ -2428,7 +2454,7 @@ html, body {
   border-radius: 10px;
   background: #4caf50;
   color: #fff;
-  font-size: 16px;
+  font-size: var(--text-16);
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -2446,7 +2472,7 @@ html, body {
 
 .auth-error {
   color: #e53935;
-  font-size: 14px;
+  font-size: var(--text-14);
   padding: 8px 12px;
   background: #fbe9e7;
   border-radius: 8px;
@@ -2454,7 +2480,7 @@ html, body {
 
 .auth-success {
   color: #43a047;
-  font-size: 14px;
+  font-size: var(--text-14);
   padding: 8px 12px;
   background: #e8f5e9;
   border-radius: 8px;
@@ -2465,7 +2491,7 @@ html, body {
   background: none;
   border: none;
   color: #4caf50;
-  font-size: 14px;
+  font-size: var(--text-14);
   cursor: pointer;
   font-family: inherit;
 }
@@ -2483,7 +2509,7 @@ html, body {
   justify-content: center;
   gap: 12px;
   color: #888;
-  font-size: 16px;
+  font-size: var(--text-16);
 }
 
 .loading-logo {
@@ -2507,7 +2533,7 @@ html, body {
   border-radius: 20px;
   border: 1px solid #e0e0e0;
   background: #fff;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
   font-family: inherit;
   color: #777;
@@ -2535,7 +2561,7 @@ html, body {
 }
 
 .trainer-date-label {
-  font-size: 13px;
+  font-size: var(--text-13);
   color: #777;
   display: block;
   margin-bottom: 8px;
@@ -2574,12 +2600,12 @@ html, body {
 }
 
 .chip-top {
-  font-size: 11px;
+  font-size: var(--text-11);
   font-weight: 600;
 }
 
 .chip-bottom {
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .trainer-date-chip.active .chip-top,
@@ -2600,7 +2626,7 @@ html, body {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   background: #fff;
-  font-size: 13px;
+  font-size: var(--text-13);
   font-family: inherit;
   color: #555;
   cursor: pointer;
@@ -2633,7 +2659,7 @@ html, body {
 }
 
 .trainer-title {
-  font-size: 20px;
+  font-size: var(--text-20);
   font-weight: 700;
   margin-bottom: 16px;
   color: #333;
@@ -2683,7 +2709,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: var(--text-18);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -2698,7 +2724,7 @@ html, body {
 
 .client-name {
   font-weight: 600;
-  font-size: 15px;
+  font-size: var(--text-15);
   color: #333;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2706,7 +2732,7 @@ html, body {
 }
 
 .client-email {
-  font-size: 13px;
+  font-size: var(--text-13);
   color: #999;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2714,7 +2740,7 @@ html, body {
 }
 
 .client-arrow {
-  font-size: 20px;
+  font-size: var(--text-20);
   color: #ccc;
   font-weight: 300;
 }
@@ -2722,7 +2748,7 @@ html, body {
 .client-delete-btn {
   background: none;
   border: none;
-  font-size: 18px;
+  font-size: var(--text-18);
   cursor: pointer;
   padding: 6px 8px;
   border-radius: 6px;
@@ -2765,7 +2791,7 @@ html, body {
 .delete-modal p {
   margin: 8px 0;
   color: #444;
-  font-size: 14px;
+  font-size: var(--text-14);
   line-height: 1.5;
 }
 
@@ -2774,7 +2800,7 @@ html, body {
   padding: 10px 12px;
   border: 1px solid #ddd;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: var(--text-14);
   margin-top: 8px;
   box-sizing: border-box;
 }
@@ -2787,7 +2813,7 @@ html, body {
 .delete-error {
   margin-top: 10px;
   color: #c0392b;
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .delete-modal-actions {
@@ -2801,7 +2827,7 @@ html, body {
 .delete-confirm-btn {
   padding: 10px 18px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
   cursor: pointer;
   border: none;
@@ -2853,7 +2879,7 @@ html, body {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   background: #fff;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-family: inherit;
   cursor: pointer;
   color: #555;
@@ -2865,7 +2891,7 @@ html, body {
 }
 
 .trainer-client-name {
-  font-size: 18px;
+  font-size: var(--text-18);
   font-weight: 700;
   color: #333;
 }
@@ -2886,7 +2912,7 @@ html, body {
   border: 1px dashed #ccc;
   border-radius: 8px;
   background: #fff;
-  font-size: 13px;
+  font-size: var(--text-13);
   font-family: inherit;
   cursor: pointer;
   color: #888;
@@ -2929,11 +2955,11 @@ html, body {
 
 .trainer-comment-icon {
   flex-shrink: 0;
-  font-size: 16px;
+  font-size: var(--text-16);
 }
 
 .trainer-comment-text {
-  font-size: 14px;
+  font-size: var(--text-14);
   color: #333;
   line-height: 1.4;
 }
@@ -2948,7 +2974,7 @@ html, body {
 .trainer-comment-delete {
   background: none;
   border: none;
-  font-size: 12px;
+  font-size: var(--text-12);
   font-family: inherit;
   color: #999;
   cursor: pointer;
@@ -2968,7 +2994,7 @@ html, body {
   padding: 10px 12px;
   border: 1px solid #4caf50;
   border-radius: 10px;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-family: inherit;
   resize: vertical;
   outline: none;
@@ -2983,7 +3009,7 @@ html, body {
 }
 
 .trainer-comment-chars {
-  font-size: 12px;
+  font-size: var(--text-12);
   color: #aaa;
 }
 
@@ -2997,7 +3023,7 @@ html, body {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   background: #fff;
-  font-size: 13px;
+  font-size: var(--text-13);
   font-family: inherit;
   cursor: pointer;
   color: #777;
@@ -3009,7 +3035,7 @@ html, body {
   border-radius: 8px;
   background: #4caf50;
   color: #fff;
-  font-size: 13px;
+  font-size: var(--text-13);
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -3029,7 +3055,7 @@ html, body {
   background: #f0f7f0;
   border-left: 3px solid #4caf50;
   border-radius: 0 8px 8px 0;
-  font-size: 13px;
+  font-size: var(--text-13);
   color: #2e7d32;
 }
 
@@ -3055,7 +3081,7 @@ html, body {
   border-radius: 8px;
   background: #1976d2;
   color: #fff;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -3085,14 +3111,14 @@ html, body {
 }
 
 .trainer-bulk-btn-all {
-  font-size: 13px;
+  font-size: var(--text-13);
   padding: 6px 16px;
 }
 
 .trainer-bulk-result {
   padding: 10px 14px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--text-13);
   margin-bottom: 16px;
 }
 
@@ -3119,7 +3145,7 @@ html, body {
   border: none;
   border-radius: 8px;
   padding: 8px 16px;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -3134,7 +3160,7 @@ html, body {
   border: 1px solid #ddd;
   border-radius: 8px;
   padding: 7px 14px;
-  font-size: 13px;
+  font-size: var(--text-13);
   cursor: pointer;
   color: #555;
   white-space: nowrap;
@@ -3158,7 +3184,7 @@ html, body {
   justify-content: space-between;
   padding: 10px 14px;
   border-bottom: 1px solid #f0f0f0;
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .invite-list-item:last-child {
@@ -3184,7 +3210,7 @@ html, body {
 }
 
 .invite-list-status {
-  font-size: 11px;
+  font-size: var(--text-11);
   color: #888;
 }
 
@@ -3196,7 +3222,7 @@ html, body {
   background: none;
   border: none;
   color: #aaa;
-  font-size: 16px;
+  font-size: var(--text-16);
   cursor: pointer;
   padding: 4px 8px;
 }
@@ -3210,7 +3236,7 @@ html, body {
 }
 
 .invite-result p {
-  font-size: 14px;
+  font-size: var(--text-14);
   color: #555;
 }
 
@@ -3240,7 +3266,7 @@ html, body {
 }
 
 .settings-header h2 {
-  font-size: 22px;
+  font-size: var(--text-22);
   font-weight: 700;
   color: #333;
   margin: 0;
@@ -3251,7 +3277,7 @@ html, body {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   background: #fff;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-family: inherit;
   cursor: pointer;
   color: #555;
@@ -3267,12 +3293,29 @@ html, body {
 }
 
 .settings-section h3 {
-  font-size: 15px;
+  font-size: var(--text-15);
   font-weight: 700;
   color: #555;
   margin: 0 0 14px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.settings-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: var(--text-14);
+  color: #333;
+  user-select: none;
+}
+
+.settings-checkbox input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #4caf50;
 }
 
 .settings-field {
@@ -3283,7 +3326,7 @@ html, body {
 }
 
 .settings-field label {
-  font-size: 14px;
+  font-size: var(--text-14);
   color: #444;
   font-weight: 500;
 }
@@ -3293,7 +3336,7 @@ html, body {
   padding: 8px 12px;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-family: inherit;
   outline: none;
   transition: border-color 0.2s;
@@ -3318,7 +3361,7 @@ html, body {
   padding: 8px 12px;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-family: inherit;
   outline: none;
   text-align: right;
@@ -3330,7 +3373,7 @@ html, body {
 }
 
 .settings-unit {
-  font-size: 13px;
+  font-size: var(--text-13);
   color: #888;
   min-width: 30px;
 }
@@ -3338,7 +3381,7 @@ html, body {
 .settings-message {
   padding: 10px 14px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--text-13);
   margin-bottom: 16px;
 }
 
@@ -3359,7 +3402,7 @@ html, body {
   border-radius: 10px;
   background: #4caf50;
   color: #fff;
-  font-size: 15px;
+  font-size: var(--text-15);
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -3392,7 +3435,7 @@ html, body {
 }
 
 .weight-tracker-label {
-  font-size: 12px;
+  font-size: var(--text-12);
   font-weight: 600;
   color: #555;
   margin-bottom: 2px;
@@ -3427,13 +3470,13 @@ html, body {
 }
 
 .weight-number {
-  font-size: 24px;
+  font-size: var(--text-24);
   font-weight: 700;
   color: #333;
 }
 
 .weight-unit {
-  font-size: 14px;
+  font-size: var(--text-14);
   color: #888;
 }
 
@@ -3449,7 +3492,7 @@ html, body {
   padding: 4px 8px;
   border: 2px solid #4caf50;
   border-radius: 8px;
-  font-size: 18px;
+  font-size: var(--text-18);
   font-weight: 700;
   font-family: inherit;
   text-align: center;
@@ -3458,7 +3501,7 @@ html, body {
 }
 
 .weight-date {
-  font-size: 11px;
+  font-size: var(--text-11);
   color: #aaa;
   margin-top: 2px;
 }
@@ -3485,14 +3528,14 @@ html, body {
 }
 
 .analysis-header h2 {
-  font-size: 22px;
+  font-size: var(--text-22);
   font-weight: 700;
   color: #333;
   margin: 0;
 }
 
 .analysis-section h3 {
-  font-size: 16px;
+  font-size: var(--text-16);
   font-weight: 700;
   color: #555;
   margin: 0 0 16px;
@@ -3508,7 +3551,7 @@ html, body {
   text-align: center;
   color: #aaa;
   padding: 40px 0;
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .analysis-legend {
@@ -3516,7 +3559,7 @@ html, body {
   gap: 20px;
   justify-content: center;
   margin-top: 14px;
-  font-size: 12px;
+  font-size: var(--text-12);
   color: #777;
 }
 
