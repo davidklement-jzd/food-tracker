@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { lookupByEan } from '../utils/barcodeLookup';
+import PortionsEditor, { cleanPortions } from './PortionsEditor';
 
 const BarcodeScanner = lazy(() => import('./BarcodeScanner'));
 
@@ -32,6 +33,7 @@ export default function FoodsDatabasePage({ onBack }) {
   const [editing, setEditing] = useState(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanLoading, setScanLoading] = useState(false);
+  const [suggestionCount, setSuggestionCount] = useState(0);
 
   async function handleScanned(code) {
     setScannerOpen(false);
@@ -94,13 +96,33 @@ export default function FoodsDatabasePage({ onBack }) {
   }, [user, tab, query, isTrainer]);
 
   useEffect(() => {
+    if (tab === 'suggestions') return;
     const t = setTimeout(fetchList, query ? 250 : 0);
     return () => clearTimeout(t);
-  }, [fetchList, query]);
+  }, [fetchList, query, tab]);
+
+  const fetchSuggestionCount = useCallback(async () => {
+    if (!isTrainer) return;
+    const { count } = await supabase
+      .from('food_portion_suggestions')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    setSuggestionCount(count || 0);
+  }, [isTrainer]);
+
+  useEffect(() => {
+    fetchSuggestionCount();
+  }, [fetchSuggestionCount]);
 
   const tabs = isTrainer
     ? [
         { id: 'pending', label: 'Čeká na schválení' },
+        {
+          id: 'suggestions',
+          label: suggestionCount > 0
+            ? `Návrhy úprav porcí (${suggestionCount})`
+            : 'Návrhy úprav porcí',
+        },
         { id: 'all', label: 'Všechny' },
         { id: 'mine', label: 'Moje přidané' },
       ]
@@ -184,28 +206,32 @@ export default function FoodsDatabasePage({ onBack }) {
         ))}
       </div>
 
-      <div className="foods-db-search">
-        <input
-          type="text"
-          placeholder="Hledat podle názvu…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        {loading && <span className="foods-db-loading">…</span>}
-      </div>
+      {tab !== 'suggestions' && (
+        <div className="foods-db-search">
+          <input
+            type="text"
+            placeholder="Hledat podle názvu…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {loading && <span className="foods-db-loading">…</span>}
+        </div>
+      )}
 
-      <div className="foods-db-add-buttons">
-        <button
-          className="foods-db-scan-btn"
-          onClick={() => setScannerOpen(true)}
-          disabled={scanLoading}
-        >
-          📷 {scanLoading ? 'Hledám…' : 'Naskenovat čárový kód'}
-        </button>
-        <button className="foods-db-add-btn" onClick={() => setEditing({ _isNew: true })}>
-          ➕ Přidat ručně
-        </button>
-      </div>
+      {tab !== 'suggestions' && (
+        <div className="foods-db-add-buttons">
+          <button
+            className="foods-db-scan-btn"
+            onClick={() => setScannerOpen(true)}
+            disabled={scanLoading}
+          >
+            📷 {scanLoading ? 'Hledám…' : 'Naskenovat čárový kód'}
+          </button>
+          <button className="foods-db-add-btn" onClick={() => setEditing({ _isNew: true })}>
+            ➕ Přidat ručně
+          </button>
+        </div>
+      )}
 
       {scannerOpen && (
         <Suspense fallback={<div className="scanner-overlay"><div className="scanner-status">Načítám skener…</div></div>}>
@@ -216,91 +242,36 @@ export default function FoodsDatabasePage({ onBack }) {
         </Suspense>
       )}
 
-      <div className="foods-db-list">
-        {rows.length === 0 && !loading && (
-          <div className="foods-db-empty">
-            {tab === 'pending'
-              ? 'Žádné potraviny nečekají na schválení.'
-              : tab === 'mine'
-                ? 'Zatím jsi nepřidal/a žádnou potravinu.'
-                : 'Nic nenalezeno.'}
-          </div>
-        )}
-        {rows.map((row) => {
-          const canEdit =
-            isTrainer || (row.created_by === user.id && row.status === 'pending');
-          return (
-            <div key={row.id} className={`foods-db-row status-${row.status}`}>
-              <div className="foods-db-row-main" onClick={() => canEdit && openEdit(row)}>
-                <div className="foods-db-row-title">
-                  {row.title}
-                  <span className={`foods-db-status status-${row.status}`}>
-                    {STATUS_LABEL[row.status] || row.status}
-                  </span>
-                </div>
-                <div className="foods-db-row-meta">
-                  <span>{round1(row.kcal)} kcal / 100 {row.is_liquid ? 'ml' : 'g'}</span>
-                  <span>B {round1(row.protein)}</span>
-                  <span>S {round1(row.carbs)}</span>
-                  <span>T {round1(row.fat)}</span>
-                  {row.fiber != null && <span>V {round1(row.fiber)}</span>}
-                  {isTrainer && row.creator && (
-                    <span className="foods-db-row-creator">
-                      👤 {row.creator.display_name || row.creator.email}
-                    </span>
-                  )}
-                  <span className="foods-db-row-source">
-                    {SOURCE_LABEL[row.source] || row.source}
-                  </span>
-                </div>
-              </div>
-              {isTrainer && row.status === 'pending' && (
-                <div className="foods-db-row-actions">
-                  <button
-                    className="foods-db-btn-approve"
-                    onClick={() => handleQuickApprove(row)}
-                    title="Rychle schválit beze změny"
-                  >
-                    ✓
-                  </button>
-                  <button
-                    className="foods-db-btn-edit"
-                    onClick={() => openEdit(row)}
-                    title="Upravit a schválit"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    className="foods-db-btn-delete"
-                    onClick={() => handleDelete(row)}
-                    title="Smazat"
-                  >
-                    🗑
-                  </button>
-                </div>
-              )}
-              {isTrainer && row.status !== 'pending' && (
-                <div className="foods-db-row-actions">
-                  <button
-                    className="foods-db-btn-edit"
-                    onClick={() => openEdit(row)}
-                    title="Upravit"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    className="foods-db-btn-delete"
-                    onClick={() => handleDelete(row)}
-                    title="Smazat"
-                  >
-                    🗑
-                  </button>
-                </div>
-              )}
+      {tab === 'suggestions' && isTrainer && (
+        <PortionSuggestionsPanel
+          onChange={(delta) => setSuggestionCount((c) => Math.max(0, c + delta))}
+        />
+      )}
+
+      {tab !== 'suggestions' && (
+        <div className="foods-db-list">
+          {rows.length === 0 && !loading && (
+            <div className="foods-db-empty">
+              {tab === 'pending'
+                ? 'Žádné potraviny nečekají na schválení.'
+                : tab === 'mine'
+                  ? 'Zatím jsi nepřidal/a žádnou potravinu.'
+                  : 'Nic nenalezeno.'}
             </div>
-          );
-        })}
-      </div>
+          )}
+          {rows.map((row) => (
+            <FoodRow
+              key={row.id}
+              row={row}
+              isTrainer={isTrainer}
+              userId={user.id}
+              onEdit={openEdit}
+              onApprove={handleQuickApprove}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
+      )}
 
       {editing && (
         <FoodEditModal
@@ -334,21 +305,6 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
 
   function set(k, v) {
     setForm((f) => ({ ...f, [k]: v }));
-  }
-
-  function updatePortion(idx, key, value) {
-    setForm((f) => ({
-      ...f,
-      portions: f.portions.map((p, i) => (i === idx ? { ...p, [key]: value } : p)),
-    }));
-  }
-
-  function addPortion() {
-    setForm((f) => ({ ...f, portions: [...f.portions, { label: '', grams: '' }] }));
-  }
-
-  function removePortion(idx) {
-    setForm((f) => ({ ...f, portions: f.portions.filter((_, i) => i !== idx) }));
   }
 
   async function propagateToDiary(foodId, per100) {
@@ -406,17 +362,9 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
       return setError('Vláknina musí být číslo ≥ 0 nebo prázdné.');
     }
 
-    const portionsClean = [];
-    for (const p of form.portions) {
-      const label = (p.label || '').trim();
-      const g = parseFloat(String(p.grams ?? '').replace(',', '.'));
-      if (label === '' && !Number.isFinite(g)) continue;
-      if (label === '' || !Number.isFinite(g) || g <= 0) {
-        return setError('Porce: vyplň label i gramáž (>0), nebo řádek smaž.');
-      }
-      portionsClean.push({ label, grams: Math.round(g * 10) / 10 });
-    }
-    const portionsValue = portionsClean.length > 0 ? portionsClean : null;
+    const cleaned = cleanPortions(form.portions);
+    if (cleaned.error) return setError(cleaned.error);
+    const portionsValue = cleaned.portions.length > 0 ? cleaned.portions : null;
 
     setSaving(true);
     try {
@@ -599,53 +547,13 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
               </label>
             </div>
 
-            <div className="modal-portions-editor">
-              <div className="modal-portions-header">
-                <span>Doporučené porce</span>
-                <button
-                  type="button"
-                  className="modal-portions-add"
-                  onClick={addPortion}
-                >
-                  + Přidat
-                </button>
-              </div>
-              {form.portions.length === 0 && (
-                <div className="modal-portions-empty">
-                  Žádné porce — klientka bude volit jen přesné gramy.
-                </div>
-              )}
-              {form.portions.map((p, i) => (
-                <div key={i} className="modal-portions-row">
-                  <input
-                    type="text"
-                    placeholder="Název (např. 1 kus)"
-                    value={p.label}
-                    onChange={(e) => updatePortion(i, 'label', e.target.value)}
-                    className="modal-portions-label"
-                  />
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="g"
-                    value={p.grams}
-                    onChange={(e) => updatePortion(i, 'grams', e.target.value)}
-                    className="modal-portions-grams"
-                  />
-                  <span className="modal-portions-unit">
-                    {form.isLiquid ? 'ml' : 'g'}
-                  </span>
-                  <button
-                    type="button"
-                    className="modal-portions-remove"
-                    onClick={() => removePortion(i)}
-                    title="Smazat"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
+            <PortionsEditor
+              value={form.portions}
+              onChange={(p) => set('portions', p)}
+              unit={form.isLiquid ? 'ml' : 'g'}
+              emptyLabel="Žádné porce — klientka bude volit jen přesné gramy."
+            />
+
 
             {error && <div className="modal-create-error">{error}</div>}
           </div>
@@ -693,6 +601,202 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
             )}
           </div>
       </div>
+    </div>
+  );
+}
+
+function FoodRow({ row, isTrainer, userId, onEdit, onApprove, onDelete }) {
+  const canEdit = isTrainer || (row.created_by === userId && row.status === 'pending');
+  return (
+    <div className={`foods-db-row status-${row.status}`}>
+      <div className="foods-db-row-main" onClick={() => canEdit && onEdit(row)}>
+        <div className="foods-db-row-title">
+          {row.title}
+          <span className={`foods-db-status status-${row.status}`}>
+            {STATUS_LABEL[row.status] || row.status}
+          </span>
+        </div>
+        <div className="foods-db-row-meta">
+          <span>{round1(row.kcal)} kcal / 100 {row.is_liquid ? 'ml' : 'g'}</span>
+          <span>B {round1(row.protein)}</span>
+          <span>S {round1(row.carbs)}</span>
+          <span>T {round1(row.fat)}</span>
+          {row.fiber != null && <span>V {round1(row.fiber)}</span>}
+          {isTrainer && row.creator && (
+            <span className="foods-db-row-creator">
+              👤 {row.creator.display_name || row.creator.email}
+            </span>
+          )}
+          <span className="foods-db-row-source">
+            {SOURCE_LABEL[row.source] || row.source}
+          </span>
+        </div>
+      </div>
+      {isTrainer && row.status === 'pending' && (
+        <div className="foods-db-row-actions">
+          <button
+            className="foods-db-btn-approve"
+            onClick={() => onApprove(row)}
+            title="Rychle schválit beze změny"
+          >✓</button>
+          <button
+            className="foods-db-btn-edit"
+            onClick={() => onEdit(row)}
+            title="Upravit a schválit"
+          >✎</button>
+          <button
+            className="foods-db-btn-delete"
+            onClick={() => onDelete(row)}
+            title="Smazat"
+          >🗑</button>
+        </div>
+      )}
+      {isTrainer && row.status !== 'pending' && (
+        <div className="foods-db-row-actions">
+          <button
+            className="foods-db-btn-edit"
+            onClick={() => onEdit(row)}
+            title="Upravit"
+          >✎</button>
+          <button
+            className="foods-db-btn-delete"
+            onClick={() => onDelete(row)}
+            title="Smazat"
+          >🗑</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function portionsListToString(portions) {
+  if (!Array.isArray(portions) || portions.length === 0) return '—';
+  return portions.map((p) => `${p.label} (${p.grams}g)`).join(', ');
+}
+
+function PortionSuggestionsPanel({ onChange }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+  const { user } = useAuth();
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('food_portion_suggestions')
+      .select(`
+        id, food_id, suggested_portions, created_at,
+        suggester:profiles!suggested_by(display_name, email),
+        food:foods!food_id(id, title, portions, is_liquid)
+      `)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.error('Suggestions fetch error:', error);
+      setItems([]);
+    } else {
+      setItems(data || []);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  async function approve(item) {
+    setBusyId(item.id);
+    try {
+      const { error: upFoodErr } = await supabase
+        .from('foods')
+        .update({ portions: item.suggested_portions })
+        .eq('id', item.food_id);
+      if (upFoodErr) {
+        alert('Přepis porcí selhal: ' + upFoodErr.message);
+        return;
+      }
+      const { error: upSugErr } = await supabase
+        .from('food_portion_suggestions')
+        .update({
+          status: 'approved',
+          reviewed_by: user.id,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq('id', item.id);
+      if (upSugErr) {
+        alert('Návrh nelze uzavřít: ' + upSugErr.message);
+        return;
+      }
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+      onChange?.(-1);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function reject(item) {
+    setBusyId(item.id);
+    try {
+      const { error } = await supabase
+        .from('food_portion_suggestions')
+        .update({
+          status: 'rejected',
+          reviewed_by: user.id,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq('id', item.id);
+      if (error) {
+        alert('Zamítnutí selhalo: ' + error.message);
+        return;
+      }
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+      onChange?.(-1);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  if (loading) {
+    return <div className="foods-db-empty">Načítám návrhy…</div>;
+  }
+  if (items.length === 0) {
+    return <div className="foods-db-empty">Žádné čekající návrhy úprav porcí.</div>;
+  }
+
+  return (
+    <div className="portion-suggestions-list">
+      {items.map((item) => (
+        <div key={item.id} className="portion-suggestion-card">
+          <div className="portion-suggestion-head">
+            <span className="portion-suggestion-title">{item.food?.title || '(smazaná potravina)'}</span>
+            <span className="portion-suggestion-author">
+              👤 {item.suggester?.display_name || item.suggester?.email || 'Klientka'}
+            </span>
+          </div>
+          <div className="portion-suggestion-row">
+            <span className="portion-suggestion-label">Stávající:</span>
+            <span className="portion-suggestion-value">{portionsListToString(item.food?.portions)}</span>
+          </div>
+          <div className="portion-suggestion-row">
+            <span className="portion-suggestion-label">Navrženo:</span>
+            <span className="portion-suggestion-value new">{portionsListToString(item.suggested_portions)}</span>
+          </div>
+          <div className="portion-suggestion-actions">
+            <button
+              className="foods-db-btn-delete"
+              onClick={() => reject(item)}
+              disabled={busyId === item.id}
+              title="Zamítnout"
+            >Zamítnout</button>
+            <button
+              className="foods-db-btn-approve"
+              onClick={() => approve(item)}
+              disabled={busyId === item.id}
+              title="Schválit a přepsat"
+            >✓ Schválit</button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

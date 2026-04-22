@@ -3,6 +3,7 @@ import { round, searchSupabaseFoods, supabaseFoodToProduct, parseServingSize, fo
 import { supabase } from '../lib/supabase';
 import { lookupByEan } from '../utils/barcodeLookup';
 import { useRecentFoods } from '../hooks/useRecentFoods';
+import PortionsEditor, { cleanPortions } from './PortionsEditor';
 
 const BarcodeScanner = lazy(() => import('./BarcodeScanner'));
 
@@ -25,10 +26,17 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
     carbs: '',
     fat: '',
     fiber: '',
+    portions: [],
   });
+  const [portionEditorOpen, setPortionEditorOpen] = useState(false);
+  const [draftPortions, setDraftPortions] = useState([]);
+  const [savingPortions, setSavingPortions] = useState(false);
+  const [portionError, setPortionError] = useState(null);
   const [createError, setCreateError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showMyMeals, setShowMyMeals] = useState(false);
+  const [rescaleId, setRescaleId] = useState(null);
+  const [rescaleValue, setRescaleValue] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanLoading, setScanLoading] = useState(false);
   const [scanInfo, setScanInfo] = useState(null); // text pod formulářem ("Načteno z OFF" apod.)
@@ -160,6 +168,60 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
   const previewFat = round((previewN.fat_100g || 0) * previewFactor);
   const previewFiber = round((previewN.fiber_100g || 0) * previewFactor);
 
+  function openPortionEditor() {
+    const current = selected?.portions || [];
+    setDraftPortions(current.map((p) => ({ label: p.label, grams: p.grams })));
+    setPortionError(null);
+    setPortionEditorOpen(true);
+  }
+
+  async function submitPortionSuggestion() {
+    setPortionError(null);
+    const cleaned = cleanPortions(draftPortions);
+    if (cleaned.error) {
+      setPortionError(cleaned.error);
+      return;
+    }
+    if (cleaned.portions.length === 0) {
+      setPortionError('Přidej alespoň jednu porci nebo zavři dialog.');
+      return;
+    }
+    setSavingPortions(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !selected?.id) {
+        setPortionError('Nejsi přihlášen/a.');
+        return;
+      }
+      // Nahradí předchozí pending návrh téhož klienta (partial unique index
+      // povolí jen jeden pending na food_id + suggested_by).
+      await supabase
+        .from('food_portion_suggestions')
+        .delete()
+        .eq('food_id', selected.id)
+        .eq('suggested_by', user.id)
+        .eq('status', 'pending');
+      const { error: insErr } = await supabase
+        .from('food_portion_suggestions')
+        .insert({
+          food_id: selected.id,
+          suggested_by: user.id,
+          suggested_portions: cleaned.portions,
+          status: 'pending',
+        });
+      if (insErr) {
+        setPortionError('Uložení selhalo: ' + insErr.message);
+        return;
+      }
+      // Lokálně aktualizuj selected, aby se dropdown porcí hned přenastavil.
+      setSelected((s) => ({ ...s, portions: cleaned.portions }));
+      setAmount({ value: '1', unit: 'portion_0' });
+      setPortionEditorOpen(false);
+    } finally {
+      setSavingPortions(false);
+    }
+  }
+
   function openCreate() {
     setCreateError(null);
     setCreateForm((f) => ({
@@ -275,6 +337,14 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
         { label: 'Litr (1000 ml)', grams: 1000 },
       ];
 
+      const cleaned = cleanPortions(createForm.portions);
+      if (cleaned.error) {
+        setCreateError(cleaned.error);
+        return;
+      }
+      const userPortions = cleaned.portions.length > 0 ? cleaned.portions : null;
+      const finalPortions = userPortions || (isLiquid ? liquidPortions : null);
+
       const { data: inserted, error: insertErr } = await supabase
         .from('foods')
         .insert({
@@ -292,7 +362,7 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
           created_by: user.id,
           ean: pendingEan || null,
           is_liquid: isLiquid,
-          portions: isLiquid ? liquidPortions : null,
+          portions: finalPortions,
         })
         .select()
         .single();
@@ -318,7 +388,7 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
         fiber: per100.fiber !== null ? per100.fiber : 0,
         food_id: inserted.id,
         unit,
-        portions: isLiquid ? liquidPortions : null,
+        portions: finalPortions,
       });
       onClose();
     } catch (e) {
@@ -435,6 +505,16 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                 </label>
               </div>
 
+              <PortionsEditor
+                value={createForm.portions}
+                onChange={(p) => updateCreateField('portions', p)}
+                unit={createForm.isLiquid ? 'ml' : 'g'}
+                title="Doporučené porce (volitelné)"
+                emptyLabel={createForm.isLiquid
+                  ? 'Prázdné = použijí se standardní sklenice/plechovka/půllitr/litr.'
+                  : 'Prázdné = jen přesná gramáž.'}
+              />
+
               {createError && (
                 <div className="modal-create-error">{createError}</div>
               )}
@@ -486,49 +566,108 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                   <button className="modal-tab active">🍽️ Moje jídla</button>
                 </div>
                 <div className="modal-recent-section">
-                  {templates.map((t) => (
-                    <div
-                      key={t.id}
-                      className="template-card"
-                    >
-                      <div
-                        className="template-card-main"
-                        onClick={() => {
-                          const entries = t.items.map((item) => ({
-                            id: Date.now() + Math.random(),
-                            name: item.name,
-                            brand: item.brand || '',
-                            grams: item.grams,
-                            displayAmount: item.display_amount || `${item.grams}${item.unit || 'g'}`,
-                            kcal: item.kcal || 0,
-                            protein: item.protein || 0,
-                            carbs: item.carbs || 0,
-                            fat: item.fat || 0,
-                            fiber: item.fiber || 0,
-                            food_id: item.food_id || null,
-                            unit: item.unit || 'g',
-                            portions: null,
-                          }));
-                          for (const entry of entries) onAdd(entry);
-                          onClose();
-                        }}
-                      >
-                        <div className="template-card-info">
-                          <span className="template-card-name">{t.name}</span>
-                          <span className="template-card-meta">{t.items.length} položek · {Math.round(t.total_kcal)} kcal</span>
+                  {templates.map((t) => {
+                    const originalTotal = t.items.reduce(
+                      (s, i) => s + (Number(i.grams) || 0),
+                      0
+                    );
+                    const insertTemplate = (targetTotal) => {
+                      const scale =
+                        targetTotal && originalTotal > 0
+                          ? targetTotal / originalTotal
+                          : 1;
+                      const entries = t.items.map((item) => {
+                        const g = Math.round((Number(item.grams) || 0) * scale);
+                        const unit = item.unit || 'g';
+                        return {
+                          id: Date.now() + Math.random(),
+                          name: item.name,
+                          brand: item.brand || '',
+                          grams: g,
+                          displayAmount:
+                            scale === 1
+                              ? item.display_amount || `${item.grams}${unit}`
+                              : `${g}${unit}`,
+                          kcal: round((item.kcal || 0) * scale),
+                          protein: round((item.protein || 0) * scale),
+                          carbs: round((item.carbs || 0) * scale),
+                          fat: round((item.fat || 0) * scale),
+                          fiber: round((item.fiber || 0) * scale),
+                          food_id: item.food_id || null,
+                          unit,
+                          portions: null,
+                        };
+                      });
+                      for (const entry of entries) onAdd(entry);
+                      onClose();
+                    };
+                    const isRescaling = rescaleId === t.id;
+                    return (
+                      <div key={t.id} className="template-card-wrap">
+                        <div className="template-card">
+                          <div
+                            className="template-card-main"
+                            onClick={() => insertTemplate()}
+                          >
+                            <div className="template-card-info">
+                              <span className="template-card-name">{t.name}</span>
+                              <span className="template-card-meta">
+                                {t.items.length} položek · {Math.round(originalTotal)} g · {Math.round(t.total_kcal)} kcal
+                              </span>
+                            </div>
+                          </div>
+                          <div className="template-card-actions">
+                            <button
+                              className="template-action-btn rescale"
+                              onClick={() => {
+                                if (isRescaling) {
+                                  setRescaleId(null);
+                                } else {
+                                  setRescaleId(t.id);
+                                  setRescaleValue(String(Math.round(originalTotal)));
+                                }
+                              }}
+                              title="Upravit celkovou gramáž"
+                            >⚖</button>
+                            {onDeleteTemplate && (
+                              <button
+                                className="template-action-btn"
+                                onClick={() => onDeleteTemplate(t.id)}
+                                title="Smazat"
+                              >🗑</button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div className="template-card-actions">
-                        {onDeleteTemplate && (
-                          <button
-                            className="template-action-btn"
-                            onClick={() => onDeleteTemplate(t.id)}
-                            title="Smazat"
-                          >🗑</button>
+                        {isRescaling && (
+                          <div className="template-rescale-row">
+                            <span className="template-rescale-label">Celkem:</span>
+                            <input
+                              type="number"
+                              className="template-rescale-input"
+                              value={rescaleValue}
+                              onChange={(e) => setRescaleValue(e.target.value)}
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  const n = Number(rescaleValue);
+                                  if (n > 0) insertTemplate(n);
+                                }
+                                if (e.key === 'Escape') setRescaleId(null);
+                              }}
+                            />
+                            <span className="template-rescale-unit">g</span>
+                            <button
+                              className="template-rescale-confirm"
+                              onClick={() => {
+                                const n = Number(rescaleValue);
+                                if (n > 0) insertTemplate(n);
+                              }}
+                            >✓</button>
+                          </div>
                         )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {templates.length === 0 && (
                     <div style={{ textAlign: 'center', color: '#999', padding: '20px 0', fontSize: 14 }}>
                       Zatím nemáte žádná uložená jídla.
@@ -659,6 +798,57 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                 <span className="macro-fiber">{previewFiber}g V</span>
               </div>
             </div>
+
+            {selected.id && selected._isLocal && (
+              <div className="portion-suggest-section">
+                {!portionEditorOpen ? (
+                  <button
+                    type="button"
+                    className="portion-suggest-btn"
+                    onClick={openPortionEditor}
+                  >
+                    ✎ Upravit porce
+                  </button>
+                ) : (
+                  <div className="portion-suggest-editor">
+                    <PortionsEditor
+                      value={draftPortions}
+                      onChange={setDraftPortions}
+                      unit={selected._isLiquid ? 'ml' : 'g'}
+                      title="Navrhnout úpravu porcí"
+                      emptyLabel="Přidej alespoň jednu porci, nebo zavři bez změn."
+                    />
+                    <div className="portion-suggest-hint">
+                      Pošle se ke schválení. Pro tento zápis se použije hned.
+                    </div>
+                    {portionError && (
+                      <div className="modal-create-error">{portionError}</div>
+                    )}
+                    <div className="portion-suggest-actions">
+                      <button
+                        type="button"
+                        className="modal-btn-back"
+                        onClick={() => {
+                          setPortionEditorOpen(false);
+                          setPortionError(null);
+                        }}
+                        disabled={savingPortions}
+                      >
+                        Zrušit
+                      </button>
+                      <button
+                        type="button"
+                        className="modal-btn-add"
+                        onClick={submitPortionSuggestion}
+                        disabled={savingPortions}
+                      >
+                        {savingPortions ? 'Ukládám…' : 'Uložit návrh'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
             <div className="modal-create-cta modal-create-actions">

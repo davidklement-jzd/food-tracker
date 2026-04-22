@@ -923,13 +923,61 @@ html, body {
   border-bottom-color: #4CAF50;
 }
 
+.template-card-wrap {
+  margin-bottom: 8px;
+}
+
 .template-card {
   display: flex;
   align-items: center;
   border: 1px solid #e5e5e5;
   border-radius: 10px;
-  margin-bottom: 8px;
   overflow: hidden;
+}
+
+.template-rescale-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-top: 4px;
+  background: #f7f7f7;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.template-rescale-label {
+  color: #555;
+}
+
+.template-rescale-input {
+  width: 70px;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  text-align: right;
+}
+
+.template-rescale-unit {
+  color: #888;
+  font-size: 13px;
+}
+
+.template-rescale-confirm {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: #4caf50;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.template-rescale-confirm:hover {
+  background: #43a047;
 }
 
 .template-card-main {
@@ -981,6 +1029,16 @@ html, body {
 
 .template-action-btn:hover {
   background: #f0f0f0;
+}
+
+.template-action-btn.rescale {
+  background: #eef5ff;
+  border: 1px solid #cfe0ff;
+  font-size: 16px;
+}
+
+.template-action-btn.rescale:hover {
+  background: #dbeaff;
 }
 
 /* Meal note textarea */
@@ -1655,6 +1713,113 @@ html, body {
 .modal-create-actions {
   flex-direction: row;
   margin-top: 0;
+}
+
+.portion-suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.portion-suggestion-card {
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #fff;
+}
+
+.portion-suggestion-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.portion-suggestion-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.portion-suggestion-author {
+  font-size: 12px;
+  color: #666;
+}
+
+.portion-suggestion-row {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  align-items: baseline;
+}
+
+.portion-suggestion-label {
+  color: #888;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.portion-suggestion-value {
+  color: #333;
+  word-break: break-word;
+}
+
+.portion-suggestion-value.new {
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+.portion-suggestion-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.portion-suggest-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+
+.portion-suggest-btn {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px dashed #bbb;
+  background: #fafafa;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+}
+
+.portion-suggest-btn:hover {
+  background: #f0f0f0;
+  border-color: #888;
+}
+
+.portion-suggest-editor {
+  background: #f7f9fc;
+  border: 1px solid #d9e2ef;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.portion-suggest-hint {
+  font-size: 12px;
+  color: #667;
+  margin-top: 8px;
+  font-style: italic;
+}
+
+.portion-suggest-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 10px;
 }
 
 .modal-portions-editor {
