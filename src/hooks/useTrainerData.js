@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { DIARY_ENTRY_SELECT, buildDiaryEntry } from './useSupabaseDiary';
 
 export function useClientList() {
   const [clients, setClients] = useState([]);
@@ -69,7 +70,7 @@ export function useClientDiary(clientId, selectedDate) {
       const [entriesRes, notesRes, commentsRes] = await Promise.all([
         supabase
           .from('diary_entries')
-          .select('*')
+          .select(DIARY_ENTRY_SELECT)
           .eq('day_id', dayRow.id)
           .order('sort_order')
           .order('created_at'),
@@ -89,19 +90,7 @@ export function useClientDiary(clientId, selectedDate) {
       const data = {};
       for (const entry of entriesRes.data || []) {
         if (!data[entry.meal_id]) data[entry.meal_id] = [];
-        data[entry.meal_id].push({
-          id: entry.id,
-          name: entry.name,
-          brand: entry.brand,
-          grams: entry.grams,
-          displayAmount: entry.display_amount,
-          kcal: entry.kcal,
-          protein: entry.protein,
-          carbs: entry.carbs,
-          fat: entry.fat,
-          fiber: entry.fiber,
-          created_by: entry.created_by,
-        });
+        data[entry.meal_id].push(buildDiaryEntry(entry));
       }
 
       const notes = {};

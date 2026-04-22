@@ -16,6 +16,55 @@ export function isLikelyLiquid(name) {
   return LIQUID_NAME_RE.test(name || '');
 }
 
+export const DIARY_ENTRY_SELECT =
+  '*, food:foods(is_liquid, portions, default_grams)';
+
+export function buildDiaryEntry(entry) {
+  const liquidByName =
+    isLikelyLiquid(entry.name) || isLikelyLiquid(entry.brand);
+  const derivedUnit = entry.food?.is_liquid
+    ? 'ml'
+    : liquidByName
+    ? 'ml'
+    : entry.unit || 'g';
+  const foodPortions =
+    Array.isArray(entry.food?.portions) && entry.food.portions.length > 0
+      ? entry.food.portions
+      : null;
+  const foodDefaultGrams = entry.food?.default_grams
+    ? Number(entry.food.default_grams)
+    : null;
+  const derivedPortions =
+    foodPortions ||
+    (foodDefaultGrams ? [{ label: 'Porce', grams: foodDefaultGrams }] : null) ||
+    (derivedUnit === 'ml' ? DEFAULT_LIQUID_PORTIONS : null);
+  // Stale display_amount: pokud máme ml, ale uloženo je "Ng", regeneruj.
+  let displayAmount = entry.display_amount;
+  if (
+    displayAmount &&
+    derivedUnit === 'ml' &&
+    /^\d+(?:[.,]\d+)?\s*g$/i.test(displayAmount.trim())
+  ) {
+    displayAmount = `${entry.grams}ml`;
+  }
+  return {
+    id: entry.id,
+    name: entry.name,
+    brand: entry.brand,
+    grams: entry.grams,
+    displayAmount,
+    kcal: entry.kcal,
+    protein: entry.protein,
+    carbs: entry.carbs,
+    fat: entry.fat,
+    fiber: entry.fiber,
+    unit: derivedUnit,
+    food_id: entry.food_id || null,
+    portions: derivedPortions,
+    created_by: entry.created_by,
+  };
+}
+
 export function useSupabaseDiary(userId, selectedDate) {
   const [dayData, setDayData] = useState({});
   const [dayId, setDayId] = useState(null);
@@ -64,7 +113,7 @@ export function useSupabaseDiary(userId, selectedDate) {
       const [entriesRes, notesRes, commentsRes] = await Promise.all([
         supabase
           .from('diary_entries')
-          .select('*, food:foods(is_liquid, portions, default_grams)')
+          .select(DIARY_ENTRY_SELECT)
           .eq('day_id', dayRow.id)
           .order('sort_order', { ascending: true })
           .order('created_at', { ascending: true }),
@@ -85,52 +134,7 @@ export function useSupabaseDiary(userId, selectedDate) {
       const entries = entriesRes.data || [];
       for (const entry of entries) {
         if (!data[entry.meal_id]) data[entry.meal_id] = [];
-        // Odvození unit: foods.is_liquid > heuristika podle názvu/značky > uložený sloupec.
-        // Heuristika smí přebít stored 'g' u zjevných tekutin (legacy zápisy + foods, kde
-        // is_liquid není správně nastaveno — viz Birel).
-        const liquidByName =
-          isLikelyLiquid(entry.name) || isLikelyLiquid(entry.brand);
-        const derivedUnit = entry.food?.is_liquid
-          ? 'ml'
-          : liquidByName
-          ? 'ml'
-          : entry.unit || 'g';
-        const foodPortions =
-          Array.isArray(entry.food?.portions) && entry.food.portions.length > 0
-            ? entry.food.portions
-            : null;
-        const foodDefaultGrams = entry.food?.default_grams
-          ? Number(entry.food.default_grams)
-          : null;
-        const derivedPortions =
-          foodPortions ||
-          (foodDefaultGrams ? [{ label: 'Porce', grams: foodDefaultGrams }] : null) ||
-          (derivedUnit === 'ml' ? DEFAULT_LIQUID_PORTIONS : null);
-        // Stale display_amount: pokud máme ml, ale uloženo je "Ng", regeneruj.
-        let displayAmount = entry.display_amount;
-        if (
-          displayAmount &&
-          derivedUnit === 'ml' &&
-          /^\d+(?:[.,]\d+)?\s*g$/i.test(displayAmount.trim())
-        ) {
-          displayAmount = `${entry.grams}ml`;
-        }
-        data[entry.meal_id].push({
-          id: entry.id,
-          name: entry.name,
-          brand: entry.brand,
-          grams: entry.grams,
-          displayAmount,
-          kcal: entry.kcal,
-          protein: entry.protein,
-          carbs: entry.carbs,
-          fat: entry.fat,
-          fiber: entry.fiber,
-          unit: derivedUnit,
-          food_id: entry.food_id || null,
-          portions: derivedPortions,
-          created_by: entry.created_by,
-        });
+        data[entry.meal_id].push(buildDiaryEntry(entry));
       }
 
       // Notes
