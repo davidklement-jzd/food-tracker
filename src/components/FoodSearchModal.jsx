@@ -260,7 +260,7 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
         setCreating(true);
         return;
       }
-      // Nikde nenalezeno → otevři prázdný formulář s předvyplněným EAN.
+      // In-store kód (prefix 2) — neukládáme EAN, není globálně unikátní.
       setCreateForm({
         title: '',
         kcal: '',
@@ -269,8 +269,13 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
         fat: '',
         fiber: '',
       });
-      setScanInfo(`Kód ${code} nebyl nalezen — vyplň hodnoty z obalu.`);
-      setPendingEan(code);
+      if (result.source === 'in-store') {
+        setScanInfo(`Kód ${code} je interní kód obchodu (není globálně jedinečný). Vyplň potravinu ručně — kód se neuloží.`);
+        setPendingEan(null);
+      } else {
+        setScanInfo(`Kód ${code} nebyl nalezen — vyplň hodnoty z obalu.`);
+        setPendingEan(code);
+      }
       setCreating(true);
     } finally {
       setScanLoading(false);

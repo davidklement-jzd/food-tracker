@@ -6,8 +6,18 @@ import { isLikelyLiquid } from '../hooks/useSupabaseDiary';
 
 const LIQUID_QUANTITY_RE = /\b(m\s*l|cl|dl|l(?:itr))\b/i;
 
+// In-store / variable-measure kódy (GS1 prefix 2) nejsou globálně unikátní.
+// Stejné číslo v jiném obchodě = jiný produkt → lookup by vracel matoucí výsledky.
+function isInStoreCode(code) {
+  const c = String(code || '').trim();
+  if (!/^\d+$/.test(c)) return false;
+  return c.startsWith('2');
+}
+
 export async function lookupByEan(ean) {
   if (!ean) return { source: 'none' };
+
+  if (isInStoreCode(ean)) return { source: 'in-store' };
 
   // 1) Lokální DB (RLS sám pustí jen viditelné záznamy)
   const { data: local, error: localErr } = await supabase

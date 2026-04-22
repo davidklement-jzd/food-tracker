@@ -45,7 +45,9 @@ export default function FoodsDatabasePage({ onBack }) {
         openEdit(result.food);
         return;
       }
-      const prefill = { _isNew: true, ean: code };
+      // In-store kód (prefix 2) není globálně unikátní → neukládáme EAN.
+      const isInStore = result.source === 'in-store';
+      const prefill = { _isNew: true, ean: isInStore ? null : code };
       if (result.source === 'off' && result.off) {
         prefill.title = result.off.title || '';
         prefill.kcal = result.off.kcal ?? '';
@@ -55,6 +57,8 @@ export default function FoodsDatabasePage({ onBack }) {
         prefill.fiber = result.off.fiber ?? '';
         prefill.is_liquid = !!result.off.isLiquid;
         prefill._scanInfo = `Načteno z Open Food Facts (EAN ${code}). Zkontroluj/doplň hodnoty.`;
+      } else if (isInStore) {
+        prefill._scanInfo = `Kód ${code} je interní kód obchodu (není globálně jedinečný). Vyplň potravinu ručně — kód se neuloží.`;
       } else {
         prefill._scanInfo = `Kód ${code} nebyl nalezen — vyplň hodnoty z obalu.`;
       }
