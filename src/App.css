@@ -16,14 +16,18 @@
 }
 
 /* Toggle "Větší písmo" v nastavení: zvětší jen body text (11-16 px),
-   nadpisy 18+ nechá být, aby se nerozhasily karty a tlačítka. */
+   nadpisy 18+ nechá být, aby se nerozhasily karty a tlačítka.
+   text-size-adjust vypne Android Chrome font-boosting, jinak se zvětšení
+   neprojeví (boost už malé texty zvětšuje na ~16px automaticky). */
 body.large-text {
-  --text-11: 13px;
-  --text-12: 14px;
-  --text-13: 15px;
-  --text-14: 16px;
-  --text-15: 16px;
-  --text-16: 17px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  --text-11: 14px;
+  --text-12: 15px;
+  --text-13: 16px;
+  --text-14: 17px;
+  --text-15: 17px;
+  --text-16: 18px;
 }
 
 * {
