@@ -5,8 +5,9 @@ import './index.css'
 import App from './App.jsx'
 
 // Aplikuje preferenci "Větší písmo" před prvním renderem, ať to neproblikne.
+// Třída na <html>, ne <body> — Chrome Android jinak ignoruje text-size-adjust.
 if (typeof window !== 'undefined' && localStorage.getItem('large_text') === '1') {
-  document.body.classList.add('large-text');
+  document.documentElement.classList.add('large-text');
 }
 
 

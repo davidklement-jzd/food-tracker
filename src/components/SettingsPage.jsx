@@ -35,10 +35,10 @@ export default function SettingsPage({ onBack, targetUserId, targetProfile, onPr
     setLargeText(next);
     if (next) {
       localStorage.setItem('large_text', '1');
-      document.body.classList.add('large-text');
+      document.documentElement.classList.add('large-text');
     } else {
       localStorage.removeItem('large_text');
-      document.body.classList.remove('large-text');
+      document.documentElement.classList.remove('large-text');
     }
   }
 
