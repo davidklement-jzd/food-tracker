@@ -14,9 +14,13 @@
 //   (poté bez --dry-run pro skutečný zápis)
 //
 // Volitelné argumenty:
-//   --source=manual  (default) – jen produkty s tímto source (manual | off | usda | user)
+//   --source=manual  (default) – jen produkty s tímto source (manual | off | usda | user | all)
 //   --limit=1000     omezení počtu řádků zpracovaných v jednom běhu
 //   --dry-run        vypíše navrhované hodnoty, ale do DB nezapíše
+//   --mode=null      (default) zpracuje položky s fiber IS NULL
+//   --mode=zero      zpracuje položky s fiber = 0 (oprava chybně zapsaných nul);
+//                    do DB se zapíše jen pokud AI navrhne hodnotu > 0
+//   --mode=both      obojí (NULL i 0)
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -27,6 +31,11 @@ const args = Object.fromEntries(
 const SOURCE = args.source || 'manual';
 const LIMIT = args.limit ? parseInt(args.limit, 10) : null;
 const DRY_RUN = !!args['dry-run'];
+const MODE = args.mode || 'null'; // 'null' | 'zero' | 'both'
+if (!['null', 'zero', 'both'].includes(MODE)) {
+  console.error(`Neplatná hodnota --mode=${MODE}. Použij null, zero, nebo both.`);
+  process.exit(1);
+}
 const BATCH_SIZE = 25;
 const DELAY_MS = 6000;
 const MAX_RETRIES = 5;
@@ -70,13 +79,15 @@ async function fetchTodo() {
   let from = 0;
   const PAGE = 1000;
   while (true) {
-    const { data, error } = await supabase
+    let q = supabase
       .from('foods')
-      .select('id, title, brand, category, kcal, protein, carbs, fat')
-      .eq('source', SOURCE)
-      .is('fiber', null)
-      .order('id')
-      .range(from, from + PAGE - 1);
+      .select('id, title, brand, category, kcal, protein, carbs, fat, fiber');
+    if (SOURCE !== 'all') q = q.eq('source', SOURCE);
+    if (MODE === 'null') q = q.is('fiber', null);
+    else if (MODE === 'zero') q = q.eq('fiber', 0);
+    else q = q.or('fiber.is.null,fiber.eq.0');
+    q = q.order('id').range(from, from + PAGE - 1);
+    const { data, error } = await q;
     if (error) throw error;
     if (!data || data.length === 0) break;
     all.push(...data);
@@ -138,7 +149,8 @@ async function updateBatch(updates) {
 }
 
 async function main() {
-  console.log(`Načítám položky ze Supabase (source=${SOURCE}, fiber IS NULL)${DRY_RUN ? ' [DRY RUN]' : ''}…`);
+  const filterDesc = MODE === 'null' ? 'fiber IS NULL' : MODE === 'zero' ? 'fiber = 0' : 'fiber IS NULL OR fiber = 0';
+  console.log(`Načítám položky ze Supabase (source=${SOURCE}, ${filterDesc})${DRY_RUN ? ' [DRY RUN]' : ''}…`);
   const todo = await fetchTodo();
   console.log(`K doplnění: ${todo.length} položek`);
   if (todo.length === 0) {
@@ -170,6 +182,11 @@ async function main() {
         continue;
       }
       const fiber = Math.round(num * 10) / 10;
+      // V mode=zero/both: pokud položka už má 0 a AI taky vrací 0, neměníme.
+      if (item.fiber === 0 && fiber === 0) {
+        skipped++;
+        continue;
+      }
       updates.push({ id: item.id, fiber });
       if (DRY_RUN) dryRows.push({ title: item.title, category: item.category, fiber });
     }
