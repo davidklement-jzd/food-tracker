@@ -29,6 +29,8 @@ data/*
 !data/fastfood-cz.jsonl
 # Výjimka: curated seznam českých klasik (vstup pro fetch-kt-foods.mjs)
 !data/cz-classics.tsv
+# Výjimka: ručně sepsaná databáze alkoholu a drinků
+!data/alcohol-cz.jsonl
 
 # Temp výstupy skriptů (SQL patche, logy)
 tmp/
