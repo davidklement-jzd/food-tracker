@@ -682,6 +682,9 @@ function PortionSuggestionsPanel({ onChange }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editingPortions, setEditingPortions] = useState([]);
+  const [editError, setEditError] = useState(null);
   const { user } = useAuth();
 
   const refresh = useCallback(async () => {
@@ -708,12 +711,12 @@ function PortionSuggestionsPanel({ onChange }) {
     refresh();
   }, [refresh]);
 
-  async function approve(item) {
+  async function approveWithPortions(item, portionsToSave) {
     setBusyId(item.id);
     try {
       const { error: upFoodErr } = await supabase
         .from('foods')
-        .update({ portions: item.suggested_portions })
+        .update({ portions: portionsToSave })
         .eq('id', item.food_id);
       if (upFoodErr) {
         alert('Přepis porcí selhal: ' + upFoodErr.message);
@@ -733,9 +736,47 @@ function PortionSuggestionsPanel({ onChange }) {
       }
       setItems((prev) => prev.filter((i) => i.id !== item.id));
       onChange?.(-1);
+      if (editingId === item.id) {
+        setEditingId(null);
+        setEditingPortions([]);
+        setEditError(null);
+      }
     } finally {
       setBusyId(null);
     }
+  }
+
+  function approve(item) {
+    return approveWithPortions(item, item.suggested_portions);
+  }
+
+  function startEdit(item) {
+    const base = Array.isArray(item.suggested_portions)
+      ? item.suggested_portions.map((p) => ({ label: p.label || '', grams: p.grams ?? '' }))
+      : [];
+    setEditingId(item.id);
+    setEditingPortions(base);
+    setEditError(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditingPortions([]);
+    setEditError(null);
+  }
+
+  async function saveEdit(item) {
+    const cleaned = cleanPortions(editingPortions);
+    if (cleaned.error) {
+      setEditError(cleaned.error);
+      return;
+    }
+    if (cleaned.portions.length === 0) {
+      setEditError('Zadej alespoň jednu porci, nebo návrh zamítni.');
+      return;
+    }
+    setEditError(null);
+    await approveWithPortions(item, cleaned.portions);
   }
 
   async function reject(item) {
@@ -769,38 +810,79 @@ function PortionSuggestionsPanel({ onChange }) {
 
   return (
     <div className="portion-suggestions-list">
-      {items.map((item) => (
-        <div key={item.id} className="portion-suggestion-card">
-          <div className="portion-suggestion-head">
-            <span className="portion-suggestion-title">{item.food?.title || '(smazaná potravina)'}</span>
-            <span className="portion-suggestion-author">
-              👤 {item.suggester?.display_name || item.suggester?.email || 'Klientka'}
-            </span>
+      {items.map((item) => {
+        const isEditing = editingId === item.id;
+        return (
+          <div key={item.id} className="portion-suggestion-card">
+            <div className="portion-suggestion-head">
+              <span className="portion-suggestion-title">{item.food?.title || '(smazaná potravina)'}</span>
+              <span className="portion-suggestion-author">
+                👤 {item.suggester?.display_name || item.suggester?.email || 'Klientka'}
+              </span>
+            </div>
+            <div className="portion-suggestion-row">
+              <span className="portion-suggestion-label">Stávající:</span>
+              <span className="portion-suggestion-value">{portionsListToString(item.food?.portions)}</span>
+            </div>
+            {!isEditing && (
+              <div className="portion-suggestion-row">
+                <span className="portion-suggestion-label">Navrženo:</span>
+                <span className="portion-suggestion-value new">{portionsListToString(item.suggested_portions)}</span>
+              </div>
+            )}
+            {isEditing && (
+              <>
+                <PortionsEditor
+                  value={editingPortions}
+                  onChange={setEditingPortions}
+                  unit={item.food?.is_liquid ? 'ml' : 'g'}
+                  title="Upravit porce"
+                  emptyLabel="Žádné porce — přidej alespoň jednu, nebo návrh zamítni."
+                />
+                {editError && <div className="modal-create-error">{editError}</div>}
+              </>
+            )}
+            <div className="portion-suggestion-actions">
+              {isEditing ? (
+                <>
+                  <button
+                    className="foods-db-btn-delete"
+                    onClick={cancelEdit}
+                    disabled={busyId === item.id}
+                  >Zrušit</button>
+                  <button
+                    className="foods-db-btn-approve"
+                    onClick={() => saveEdit(item)}
+                    disabled={busyId === item.id}
+                    title="Uložit upravené porce a schválit"
+                  >{busyId === item.id ? 'Ukládám…' : '✓ Uložit a schválit'}</button>
+                </>
+              ) : (
+                <>
+                  <button
+                    className="foods-db-btn-delete"
+                    onClick={() => reject(item)}
+                    disabled={busyId === item.id}
+                    title="Zamítnout"
+                  >Zamítnout</button>
+                  <button
+                    className="foods-db-btn-edit"
+                    onClick={() => startEdit(item)}
+                    disabled={busyId === item.id}
+                    title="Upravit a schválit"
+                  >✎ Upravit</button>
+                  <button
+                    className="foods-db-btn-approve"
+                    onClick={() => approve(item)}
+                    disabled={busyId === item.id}
+                    title="Schválit beze změny"
+                  >✓ Schválit</button>
+                </>
+              )}
+            </div>
           </div>
-          <div className="portion-suggestion-row">
-            <span className="portion-suggestion-label">Stávající:</span>
-            <span className="portion-suggestion-value">{portionsListToString(item.food?.portions)}</span>
-          </div>
-          <div className="portion-suggestion-row">
-            <span className="portion-suggestion-label">Navrženo:</span>
-            <span className="portion-suggestion-value new">{portionsListToString(item.suggested_portions)}</span>
-          </div>
-          <div className="portion-suggestion-actions">
-            <button
-              className="foods-db-btn-delete"
-              onClick={() => reject(item)}
-              disabled={busyId === item.id}
-              title="Zamítnout"
-            >Zamítnout</button>
-            <button
-              className="foods-db-btn-approve"
-              onClick={() => approve(item)}
-              disabled={busyId === item.id}
-              title="Schválit a přepsat"
-            >✓ Schválit</button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
