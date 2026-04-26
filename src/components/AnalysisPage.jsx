@@ -177,7 +177,7 @@ export default function AnalysisPage({ onBack, targetUserId, targetProfile }) {
               </span>
               <span className="legend-item">
                 <span className="legend-line legend-goal" />
-                Počáteční váha ({goalWeight} kg)
+                Cílová váha ({goalWeight} kg)
               </span>
             </div>
           )}
