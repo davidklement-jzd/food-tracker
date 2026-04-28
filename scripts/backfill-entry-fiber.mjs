@@ -13,10 +13,14 @@
 //   (poté bez --dry-run pro skutečný zápis)
 //
 // Volitelné argumenty:
-//   --match=id       (default) matchuje jen entries s vyplněným food_id
-//   --match=name     matchuje entries BEZ food_id přes shodu name+brand;
-//                    spáruje jen pokud je v foods PRÁVĚ JEDEN match (jednoznačnost)
-//   --match=both     obojí v jednom běhu
+//   --match=id        (default) matchuje jen entries s vyplněným food_id
+//   --match=name      matchuje entries BEZ food_id přes shodu name+brand;
+//                     spáruje jen pokud je v foods PRÁVĚ JEDEN match (jednoznačnost)
+//   --match=curated   kurátorovaný fallback: hardcoded fiber pro nejběžnější
+//                     české potraviny (rajče, okurka, paprika, ovoce, kaše…).
+//                     Aplikuje se na entries s fiber=0 bez ohledu na food_id.
+//                     Použít, když číselník foods má fiber=0 i tam, kde nemá.
+//   --match=all       id + name + curated v jednom běhu
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -24,9 +28,9 @@ const args = Object.fromEntries(
   process.argv.slice(2).map((a) => a.replace(/^--/, '').split('=')).map(([k, v]) => [k, v ?? true])
 );
 const DRY_RUN = !!args['dry-run'];
-const MATCH = args.match || 'id'; // 'id' | 'name' | 'both'
-if (!['id', 'name', 'both'].includes(MATCH)) {
-  console.error(`Neplatná hodnota --match=${MATCH}. Použij id, name, nebo both.`);
+const MATCH = args.match || 'id'; // 'id' | 'name' | 'curated' | 'both' | 'all'
+if (!['id', 'name', 'curated', 'both', 'all'].includes(MATCH)) {
+  console.error(`Neplatná hodnota --match=${MATCH}. Použij id, name, curated, both, nebo all.`);
   process.exit(1);
 }
 
@@ -66,6 +70,115 @@ function normalizeName(s) {
     .normalize('NFD').replace(/[̀-ͯ]/g, '') // strip diacritics
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+// Kurátorovaný seznam vlákniny v g / 100 g pro nejběžnější české potraviny.
+// Každé pravidlo: { match: regex (na normalizovaném názvu), fiber: g/100g, label }.
+// Pravidla aplikujeme v pořadí — první shoda vyhrává. Pořadí je důležité —
+// specifičtější pravidla musí být PŘED obecnějšími (např. "salát caesar" před "salat").
+const CURATED_FIBER = [
+  // Salátové výjimky (nejdřív, ať obecné /salat/ je nepřekryje)
+  { match: /\bsalat\s+caesar\b/, fiber: 1.5, label: 'salát caesar' },
+  { match: /\bsalat\s+(s\s+|z\s+|nicoise|coleslaw)/, fiber: 2.0, label: 'salát (smíchaný)' },
+
+  // Zelenina syrová (per fill-fiber-ai orientace)
+  { match: /\brajc[a-z]*\b/, fiber: 1.2, label: 'rajče' }, // rajče, rajčata, rajčátka, rajčátko, rajčový
+  { match: /\bcherry\s*rajc[a-z]*\b/, fiber: 1.2, label: 'cherry rajče' },
+  { match: /\bokurk(a|y|ova|ovy)\s*(saladova|salatova|hadovka|kysla|nakladana|syrova|cely)?\b/, fiber: 0.5, label: 'okurka' },
+  { match: /\bpaprik(a|y|ovy|ova)\s*(cervena|zelena|zluta|kapie|babura|syrova)?\b/, fiber: 1.7, label: 'paprika' },
+  { match: /\bmrkev|mrkve\b/, fiber: 2.8, label: 'mrkev' },
+  { match: /\bbrokolic(e|ova)\b/, fiber: 2.6, label: 'brokolice' },
+  { match: /\bkvetak\b/, fiber: 2.1, label: 'květák' },
+  { match: /\bzeli\s*(bile|cervene|cervenne|hlavkove|kysane)?\b/, fiber: 2.5, label: 'zelí' },
+  { match: /\bspenat\s*(listovy|cerstvy|mrazeny)?\b/, fiber: 2.2, label: 'špenát' },
+  { match: /\bcibul(e|ovy)\b/, fiber: 1.7, label: 'cibule' },
+  { match: /\bcesnek\b/, fiber: 2.1, label: 'česnek' },
+  { match: /\b(hlavkov[ya]?\s+)?salat\s*(ledov[ya]|hlavkov[ya]|romsk[ya]|listovy)?\b/, fiber: 1.3, label: 'salát listový' },
+  { match: /\brukol(a|ova)\b/, fiber: 1.6, label: 'rukola' },
+  { match: /\bredkvic(ka|ky|kov[ya])\b/, fiber: 1.6, label: 'ředkvička' },
+  { match: /\bdyne\b/, fiber: 1.1, label: 'dýně' },
+  { match: /\bcuketa|cukety\b/, fiber: 1.1, label: 'cuketa' },
+  { match: /\blilek\b/, fiber: 3.0, label: 'lilek' },
+  { match: /\bkukurice\b/, fiber: 2.7, label: 'kukuřice' },
+  { match: /\bhrasek\s*(zeleny|mrazeny)?\b/, fiber: 5.5, label: 'hrášek' },
+
+  // Ovoce
+  { match: /\bjablk(o|a|ove)\b/, fiber: 2.4, label: 'jablko' },
+  { match: /\bhrusk(a|y|ove)\b/, fiber: 3.1, label: 'hruška' },
+  { match: /\bbanan\b/, fiber: 2.6, label: 'banán' },
+  { match: /\bjahod(y|ove)\b/, fiber: 2.0, label: 'jahody' },
+  { match: /\bborůvk[ya]|boruvk[ya]\b/, fiber: 2.4, label: 'borůvky' },
+  { match: /\bmaliny|maliniky\b/, fiber: 6.5, label: 'maliny' },
+  { match: /\bostruziny\b/, fiber: 5.3, label: 'ostružiny' },
+  { match: /\bpomeranc\b/, fiber: 2.4, label: 'pomeranč' },
+  { match: /\bmandarink[ya]\b/, fiber: 1.8, label: 'mandarinka' },
+  { match: /\bgrep|grapefruit\b/, fiber: 1.6, label: 'grep' },
+  { match: /\bhroznov[ye]?\s*vino|hrozny\b/, fiber: 0.9, label: 'hroznové víno' },
+  { match: /\bmelou?n\b/, fiber: 0.4, label: 'meloun' },
+  { match: /\bbroskev|nektarink[ya]\b/, fiber: 1.5, label: 'broskev' },
+  { match: /\bmerunk[ya]\b/, fiber: 2.0, label: 'meruňka' },
+  { match: /\bsvestk[ya]\b/, fiber: 1.4, label: 'švestka' },
+  { match: /\bkivi\b/, fiber: 3.0, label: 'kiwi' },
+  { match: /\bananas\b/, fiber: 1.4, label: 'ananas' },
+
+  // Pečivo — tmavé (žitné, celozrnné, grahamové, špaldové) — modifier v JAKÉMKOLIV pořadí
+  { match: /\bknackebrot|kornspitz\b/, fiber: 14, label: 'knäckebrot' },
+  { match: /\b(zitn|celozrn|grahamov|tmav|spaldov)[a-z]*\s+(chleb|chleba|rohlik|bulka|houska|veka|baget[a-z]*)\b/, fiber: 6.0, label: 'tmavé pečivo' },
+  { match: /\b(chleb|chleba|rohlik|bulka|houska|veka|baget[a-z]*)\s+(zitn|celozrn|grahamov|tmav|spaldov)[a-z]*\b/, fiber: 6.0, label: 'tmavé pečivo' },
+  // Pečivo — světlé (default pro chleb/rohlík/bulka bez modifikátoru, nebo s "bílá/toastový")
+  { match: /\brohlik\b/, fiber: 3.0, label: 'rohlík bílý' },
+  { match: /\b(chleb|chleba|bulka|houska|veka|baget[a-z]*)\b/, fiber: 2.7, label: 'světlé pečivo' },
+
+  // Kaše a obiloviny
+  { match: /\bryze\s*(varena|jasmiov[ya]|bila|vasil[ya])?\b/, fiber: 0.4, label: 'rýže vařená' },
+  { match: /\btestoviny\s*(varene|integrali|celozrn[ny][ya]?)?\b/, fiber: 1.8, label: 'těstoviny' },
+  { match: /\bkuskus\s*(vareny)?\b/, fiber: 1.4, label: 'kuskus' },
+  { match: /\bbulgur\s*(vareny)?\b/, fiber: 4.5, label: 'bulgur' },
+  { match: /\bquinoa\b/, fiber: 2.8, label: 'quinoa' },
+  { match: /\bpohank[ya]\s*(varena)?\b/, fiber: 2.7, label: 'pohanka' },
+  { match: /\bovesn[ye]?\s*vlocky\b/, fiber: 10, label: 'ovesné vločky' },
+  { match: /\bjahly\s*(varene)?\b/, fiber: 1.3, label: 'jáhly vařené' },
+
+  // Brambory
+  { match: /\bbrambor[yae]?\s*(varene|pecene|nove|loupane|americke|grilovane)?\b/, fiber: 1.8, label: 'brambory' },
+
+  // Luštěniny vařené
+  { match: /\bcocka\s*(varena|cervena|zelena)?\b/, fiber: 8.0, label: 'čočka vařená' },
+  { match: /\bfazole\s*(varene|cervene|bile|cerne)?\b/, fiber: 7.0, label: 'fazole vařené' },
+  { match: /\bcizrn[ya]\s*(varena)?\b/, fiber: 7.0, label: 'cizrna vařená' },
+
+  // Ořechy a semínka
+  { match: /\bmandle\b/, fiber: 12, label: 'mandle' },
+  { match: /\bvlassk[ye]?\s*orech[ya]?\b/, fiber: 7.0, label: 'vlašské ořechy' },
+  { match: /\blnen[ye]?\s*seminka\b/, fiber: 27, label: 'lněná semínka' },
+  { match: /\bchia\b/, fiber: 34, label: 'chia' },
+  { match: /\bslunecnicov[ye]?\s*seminka\b/, fiber: 8.0, label: 'slunečnicová semínka' },
+];
+
+// Pokud entry název obsahuje některý z těchto výrazů, kurátorovaný match
+// NEAPLIKUJEME. Brání falešné shodě u příchutí, ochucených doplňků, džusů
+// (BalanceOil pomeranč → pomeranč; Whey banán → banán atd.).
+const CURATED_BLOCKERS = [
+  /\bolej(\b|ova|ovy)/, /\boil\b/, /\bbalanceoil\b/,
+  /\bdoplnek\b/, /\bsupplement\b/, /\bprotein(ovy|ova|ovych)?\b/, /\bwhey\b/, /\bcasein\b/, /\bbcaa\b/,
+  /\bstava\b/, /\bjuice\b/, /\bdzus\b/, /\bsmoothie\b/, /\bnektar\b/, /\bsiroup?\b/, /\bsirup\b/,
+  /\bpriichuti?\b/, /\bprichut\b/, /\baroma\b/, /\bochuceny?\b/, /\bflavor\b/, /\bflavour\b/,
+  /\bjogurt(ovy|ove)?\b/, /\bkefir\b/, /\bsmetanovy?\b/, /\bpudd?ing\b/, /\bdezert\b/,
+  /\bcokolad[a-z]*\b/, /\bsuchar\b/, /\bsusenk[ya]\b/, /\bbisku?vit[ya]?\b/,
+  /\bnapoj\b/, /\bdrink\b/, /\bcoctail\b/, /\bkoktejl\b/,
+  /\bzmrzlin[ya]\b/, /\bsorbet\b/, /\bmusli\b/, /\bgranol[ya]\b/, /\bcornflakes?\b/,
+  /\bbalanceoil\b/, /\bzinzino\b/,
+];
+
+function curatedFiberFor(name) {
+  const n = normalizeName(name);
+  for (const blocker of CURATED_BLOCKERS) {
+    if (blocker.test(n)) return null;
+  }
+  for (const rule of CURATED_FIBER) {
+    if (rule.match.test(n)) return { fiber: rule.fiber, label: rule.label };
+  }
+  return null;
 }
 
 async function fetchAllFoodsWithFiber() {
@@ -198,16 +311,65 @@ async function collectNameMatches() {
   return updates;
 }
 
+async function collectCuratedMatches() {
+  console.log(`\n— Pass: curated-match (hardcoded fiber pro běžné potraviny) —`);
+  // Bere VŠECHNY entries s fiber=0 bez ohledu na food_id, protože i u entries
+  // s vyplněným food_id může být foods.fiber=0 (rozbitý číselník).
+  const allEntries = [];
+  for (const withFoodId of [true, false]) {
+    const part = await fetchEntriesNeedingFiber({ withFoodId });
+    allEntries.push(...part);
+  }
+  console.log(`Kandidáti: ${allEntries.length}`);
+
+  const updates = [];
+  const matchedByLabel = new Map();
+  for (const e of allEntries) {
+    const hit = curatedFiberFor(e.name);
+    if (!hit) continue;
+    const u = buildEntryUpdate(e, hit.fiber);
+    if (u) {
+      u.curatedLabel = hit.label;
+      updates.push(u);
+      matchedByLabel.set(hit.label, (matchedByLabel.get(hit.label) || 0) + 1);
+    }
+  }
+
+  console.log(`Spárováno přes kurátorovaný seznam: ${updates.length}`);
+  if (DRY_RUN && matchedByLabel.size > 0) {
+    const sorted = [...matchedByLabel.entries()].sort((a, b) => b[1] - a[1]);
+    console.log(`Rozpis podle kategorie:`);
+    for (const [label, count] of sorted) console.log(`  ${count.toString().padStart(4)}× ${label}`);
+  }
+  return updates;
+}
+
+function dedupeUpdatesByEntryId(list) {
+  // Stejné entry mohlo projít víc průchody — necháme první (id-match má přednost).
+  const seen = new Set();
+  const out = [];
+  for (const u of list) {
+    if (seen.has(u.id)) continue;
+    seen.add(u.id);
+    out.push(u);
+  }
+  return out;
+}
+
 async function main() {
   console.log(`Backfill diary_entries.fiber, mode=match=${MATCH}${DRY_RUN ? ' [DRY RUN]' : ''}`);
 
-  const updates = [];
-  if (MATCH === 'id' || MATCH === 'both') {
-    updates.push(...(await collectIdMatches()));
+  const all = [];
+  if (MATCH === 'id' || MATCH === 'both' || MATCH === 'all') {
+    all.push(...(await collectIdMatches()));
   }
-  if (MATCH === 'name' || MATCH === 'both') {
-    updates.push(...(await collectNameMatches()));
+  if (MATCH === 'name' || MATCH === 'both' || MATCH === 'all') {
+    all.push(...(await collectNameMatches()));
   }
+  if (MATCH === 'curated' || MATCH === 'all') {
+    all.push(...(await collectCuratedMatches()));
+  }
+  const updates = dedupeUpdatesByEntryId(all);
 
   console.log(`\nK úpravě celkem: ${updates.length} entries.`);
   if (updates.length === 0) {
