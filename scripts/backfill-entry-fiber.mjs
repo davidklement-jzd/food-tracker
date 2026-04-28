@@ -21,6 +21,10 @@
 //                     Aplikuje se na entries s fiber=0 bez ohledu na food_id.
 //                     Použít, když číselník foods má fiber=0 i tam, kde nemá.
 //   --match=all       id + name + curated v jednom běhu
+//   --fix-foods       projde tabulku foods, kde je fiber NULL nebo 0, a aplikuje
+//                     stejné kurátorované hodnoty (g/100g) na řádky shodující se
+//                     s pravidly podle title. Tím se opraví číselník i pro
+//                     budoucí zápisy. Lze kombinovat s libovolným --match.
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -33,6 +37,7 @@ if (!['id', 'name', 'curated', 'both', 'all'].includes(MATCH)) {
   console.error(`Neplatná hodnota --match=${MATCH}. Použij id, name, curated, both, nebo all.`);
   process.exit(1);
 }
+const FIX_FOODS = !!args['fix-foods'];
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -356,8 +361,76 @@ function dedupeUpdatesByEntryId(list) {
   return out;
 }
 
+async function fetchFoodsNeedingFiber() {
+  const all = [];
+  let from = 0;
+  const PAGE = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from('foods')
+      .select('id, title, brand, fiber')
+      .or('fiber.is.null,fiber.eq.0')
+      .order('id')
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
+}
+
+async function applyCuratedToFoods() {
+  console.log(`\n— Pass: fix-foods (kurátorovaný fiber → tabulka foods) —`);
+  const rows = await fetchFoodsNeedingFiber();
+  console.log(`Foods s fiber NULL nebo 0: ${rows.length}`);
+
+  const updates = [];
+  const matchedByLabel = new Map();
+  for (const row of rows) {
+    const hit = curatedFiberFor(row.title);
+    if (!hit) continue;
+    updates.push({ id: row.id, title: row.title, oldFiber: row.fiber, newFiber: hit.fiber, label: hit.label });
+    matchedByLabel.set(hit.label, (matchedByLabel.get(hit.label) || 0) + 1);
+  }
+
+  console.log(`Spárováno: ${updates.length}`);
+  if (matchedByLabel.size > 0) {
+    const sorted = [...matchedByLabel.entries()].sort((a, b) => b[1] - a[1]);
+    console.log(`Rozpis podle kategorie:`);
+    for (const [label, count] of sorted) console.log(`  ${count.toString().padStart(4)}× ${label}`);
+  }
+
+  if (DRY_RUN) {
+    for (const u of updates.slice(0, 60)) {
+      console.log(`  ${u.oldFiber == null ? 'null' : u.oldFiber} → ${u.newFiber} g/100g  [${u.label}]  ${u.title}`);
+    }
+    if (updates.length > 60) console.log(`  … a dalších ${updates.length - 60}`);
+    console.log(`\nDRY RUN: do foods nezapsáno.`);
+    return updates.length;
+  }
+
+  let done = 0;
+  for (const u of updates) {
+    const { error } = await supabase
+      .from('foods')
+      .update({ fiber: u.newFiber })
+      .eq('id', u.id);
+    if (error) console.error(`Update foods ${u.id} error:`, error.message);
+    else done++;
+  }
+  console.log(`\nFoods opraveno: ${done} / ${updates.length}.`);
+  return done;
+}
+
 async function main() {
-  console.log(`Backfill diary_entries.fiber, mode=match=${MATCH}${DRY_RUN ? ' [DRY RUN]' : ''}`);
+  console.log(`Backfill diary_entries.fiber, mode=match=${MATCH}${FIX_FOODS ? ', fix-foods' : ''}${DRY_RUN ? ' [DRY RUN]' : ''}`);
+
+  if (FIX_FOODS) {
+    await applyCuratedToFoods();
+  }
+
 
   const all = [];
   if (MATCH === 'id' || MATCH === 'both' || MATCH === 'all') {
