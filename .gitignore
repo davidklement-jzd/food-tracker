@@ -31,6 +31,8 @@ data/*
 !data/cz-classics.tsv
 # Výjimka: ručně sepsaná databáze alkoholu a drinků
 !data/alcohol-cz.jsonl
+# Výjimka: ručně sepsaná databáze sladkého pečiva, zákusků, dortů a dezertů
+!data/sweets-cz.jsonl
 
 # Temp výstupy skriptů (SQL patche, logy)
 tmp/
