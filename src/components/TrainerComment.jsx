@@ -31,7 +31,13 @@ export default function TrainerComment({ mealId, mealLabel, comment, hasEntries,
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value.slice(0, 250))}
-          placeholder="Napište komentář..."
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSave();
+            }
+          }}
+          placeholder="Napište komentář... (Enter uloží, Shift+Enter nový řádek)"
           rows={2}
           autoFocus
           maxLength={250}
