@@ -11,6 +11,12 @@
 //   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
 //     node scripts/backfill-entry-fiber.mjs --dry-run
 //   (poté bez --dry-run pro skutečný zápis)
+//
+// Volitelné argumenty:
+//   --match=id       (default) matchuje jen entries s vyplněným food_id
+//   --match=name     matchuje entries BEZ food_id přes shodu name+brand;
+//                    spáruje jen pokud je v foods PRÁVĚ JEDEN match (jednoznačnost)
+//   --match=both     obojí v jednom běhu
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -18,6 +24,11 @@ const args = Object.fromEntries(
   process.argv.slice(2).map((a) => a.replace(/^--/, '').split('=')).map(([k, v]) => [k, v ?? true])
 );
 const DRY_RUN = !!args['dry-run'];
+const MATCH = args.match || 'id'; // 'id' | 'name' | 'both'
+if (!['id', 'name', 'both'].includes(MATCH)) {
+  console.error(`Neplatná hodnota --match=${MATCH}. Použij id, name, nebo both.`);
+  process.exit(1);
+}
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -28,18 +39,18 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
 
-async function fetchEntriesNeedingFiber() {
+async function fetchEntriesNeedingFiber({ withFoodId }) {
   const all = [];
   let from = 0;
   const PAGE = 1000;
   while (true) {
-    const { data, error } = await supabase
+    let q = supabase
       .from('diary_entries')
-      .select('id, name, grams, fiber, food_id')
-      .eq('fiber', 0)
-      .not('food_id', 'is', null)
-      .order('id')
-      .range(from, from + PAGE - 1);
+      .select('id, name, brand, grams, fiber, food_id')
+      .eq('fiber', 0);
+    q = withFoodId ? q.not('food_id', 'is', null) : q.is('food_id', null);
+    q = q.order('id').range(from, from + PAGE - 1);
+    const { data, error } = await q;
     if (error) throw error;
     if (!data || data.length === 0) break;
     all.push(...data);
@@ -47,6 +58,32 @@ async function fetchEntriesNeedingFiber() {
     from += PAGE;
   }
   return all;
+}
+
+async function fetchFoodsByNameBrand(pairs) {
+  // pairs: [{name, brand}]. Vrací mapu key -> {fiber, count}.
+  // Klíč: lower(name) + '||' + lower(brand)
+  const map = new Map();
+  // Načteme všechny foods záznamy s vlákninou > 0 — pak filtrujeme lokálně
+  // (jednodušší než dynamicky stavět velký OR filtr).
+  const { data, error } = await supabase
+    .from('foods')
+    .select('title, brand, fiber')
+    .gt('fiber', 0);
+  if (error) throw error;
+  const grouped = new Map();
+  for (const row of data || []) {
+    const key = `${(row.title || '').toLowerCase()}||${(row.brand || '').toLowerCase()}`;
+    const cur = grouped.get(key);
+    if (!cur) grouped.set(key, { fiber: row.fiber, count: 1 });
+    else { cur.count++; cur.fiber = row.fiber; }
+  }
+  for (const p of pairs) {
+    const key = `${(p.name || '').toLowerCase()}||${(p.brand || '').toLowerCase()}`;
+    const hit = grouped.get(key);
+    if (hit && hit.count === 1) map.set(key, hit.fiber);
+  }
+  return map;
 }
 
 async function fetchFoodsByIds(ids) {
@@ -68,40 +105,80 @@ async function fetchFoodsByIds(ids) {
   return map;
 }
 
-async function main() {
-  console.log(`Načítám diary_entries s fiber = 0 a vyplněným food_id${DRY_RUN ? ' [DRY RUN]' : ''}…`);
-  const entries = await fetchEntriesNeedingFiber();
-  console.log(`Kandidáti na opravu: ${entries.length}`);
-  if (entries.length === 0) {
-    console.log('Nic k práci. Hotovo.');
-    return;
-  }
+function buildEntryUpdate(entry, fiberPer100g) {
+  const grams = Number(entry.grams) || 0;
+  if (grams <= 0) return null;
+  // V diary_entries je vláknina v gramech POLOŽKY, ne na 100 g — viz schema
+  // (ostatní makra jsou taky v g položky). Přepočet z foods (g/100g):
+  const newFiber = Math.round(((fiberPer100g * grams) / 100) * 10) / 10;
+  if (newFiber <= 0) return null;
+  return { id: entry.id, name: entry.name, grams, oldFiber: entry.fiber, newFiber };
+}
+
+async function collectIdMatches() {
+  console.log(`\n— Pass: id-match (food_id IS NOT NULL) —`);
+  const entries = await fetchEntriesNeedingFiber({ withFoodId: true });
+  console.log(`Kandidáti: ${entries.length}`);
+  if (entries.length === 0) return [];
 
   const uniqueFoodIds = [...new Set(entries.map((e) => e.food_id))];
-  console.log(`Načítám aktuální vlákninu pro ${uniqueFoodIds.length} potravin z foods…`);
+  console.log(`Foods k načtení: ${uniqueFoodIds.length}`);
   const foodFiber = await fetchFoodsByIds(uniqueFoodIds);
-  console.log(`Z toho s fiber > 0 ve foods: ${foodFiber.size}`);
+  console.log(`Z toho s fiber > 0: ${foodFiber.size}`);
 
   const updates = [];
   for (const e of entries) {
     const fiberPer100g = foodFiber.get(e.food_id);
     if (!fiberPer100g) continue;
-    const grams = Number(e.grams) || 0;
-    if (grams <= 0) continue;
-    // V diary_entries je vláknina v gramech POLOŽKY, ne na 100 g — viz schema
-    // (ostatní makra jsou taky v g položky). Přepočet z foods (g/100g):
-    const newFiber = Math.round(((fiberPer100g * grams) / 100) * 10) / 10;
-    if (newFiber <= 0) continue;
-    updates.push({ id: e.id, name: e.name, grams, oldFiber: e.fiber, newFiber });
+    const u = buildEntryUpdate(e, fiberPer100g);
+    if (u) updates.push(u);
+  }
+  return updates;
+}
+
+async function collectNameMatches() {
+  console.log(`\n— Pass: name-match (food_id IS NULL) —`);
+  const entries = await fetchEntriesNeedingFiber({ withFoodId: false });
+  console.log(`Kandidáti: ${entries.length}`);
+  if (entries.length === 0) return [];
+
+  const pairs = entries.map((e) => ({ name: e.name, brand: e.brand || '' }));
+  const fiberMap = await fetchFoodsByNameBrand(pairs);
+  console.log(`Jednoznačných shod name+brand s fiber > 0: ${fiberMap.size}`);
+
+  const updates = [];
+  for (const e of entries) {
+    const key = `${(e.name || '').toLowerCase()}||${(e.brand || '').toLowerCase()}`;
+    const fiberPer100g = fiberMap.get(key);
+    if (!fiberPer100g) continue;
+    const u = buildEntryUpdate(e, fiberPer100g);
+    if (u) updates.push(u);
+  }
+  return updates;
+}
+
+async function main() {
+  console.log(`Backfill diary_entries.fiber, mode=match=${MATCH}${DRY_RUN ? ' [DRY RUN]' : ''}`);
+
+  const updates = [];
+  if (MATCH === 'id' || MATCH === 'both') {
+    updates.push(...(await collectIdMatches()));
+  }
+  if (MATCH === 'name' || MATCH === 'both') {
+    updates.push(...(await collectNameMatches()));
   }
 
-  console.log(`K úpravě: ${updates.length} entries.`);
+  console.log(`\nK úpravě celkem: ${updates.length} entries.`);
+  if (updates.length === 0) {
+    console.log('Nic k práci. Hotovo.');
+    return;
+  }
 
   if (DRY_RUN) {
-    for (const u of updates.slice(0, 50)) {
+    for (const u of updates.slice(0, 80)) {
       console.log(`  ${u.oldFiber} → ${u.newFiber} g  (${u.grams} g)  ${u.name}`);
     }
-    if (updates.length > 50) console.log(`  … a dalších ${updates.length - 50}`);
+    if (updates.length > 80) console.log(`  … a dalších ${updates.length - 80}`);
     console.log('\nDRY RUN: do DB nezapsáno.');
     return;
   }
