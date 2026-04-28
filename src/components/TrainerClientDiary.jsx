@@ -44,6 +44,7 @@ function formatDate(dateStr) {
 export default function TrainerClientDiary({ client, onBack }) {
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
   const [modalMeal, setModalMeal] = useState(null);
   const [activityModal, setActivityModal] = useState(false);
   const [clientView, setClientView] = useState('diary'); // 'diary' | 'settings' | 'analysis'
@@ -83,13 +84,17 @@ export default function TrainerClientDiary({ client, onBack }) {
   }
 
   const commentWholeDay = useCallback(async () => {
-    setBulkLoading(true);
     // Kalorický dluh (supplements) je účetní úprava, ne jídlo – AI ho nekomentuje.
     const mealsWithEntries = MEALS.filter(
       (m) => m.id !== 'supplements' && (dayData[m.id] || []).length > 0 && !comments[m.id],
     );
+    setBulkLoading(true);
+    setBulkProgress({ current: 0, total: mealsWithEntries.length });
+    let done = 0;
     for (const meal of mealsWithEntries) {
       await generateAiComment(meal.id, meal.label, clientProfile);
+      done++;
+      setBulkProgress({ current: done, total: mealsWithEntries.length });
     }
     setBulkLoading(false);
   }, [dayData, comments, generateAiComment, clientProfile]);
@@ -166,7 +171,9 @@ export default function TrainerClientDiary({ client, onBack }) {
             onClick={commentWholeDay}
             disabled={bulkLoading}
           >
-            {bulkLoading ? '⏳ Generuji komentáře...' : '🤖 Okomentovat celý den'}
+            {bulkLoading
+              ? `⏳ Generuji komentáře... ${bulkProgress.current}/${bulkProgress.total}`
+              : '🤖 Okomentovat celý den'}
           </button>
         </div>
       )}

@@ -44,6 +44,7 @@ export default function TrainerDashboard({ onSelectClient }) {
   const { user } = useAuth();
   const { clients, loading, refresh } = useClientList();
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
   const [bulkResult, setBulkResult] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedDates, setSelectedDates] = useState(new Set([getLast7Days()[1]])); // default: včera
@@ -183,29 +184,36 @@ export default function TrainerDashboard({ onSelectClient }) {
 
   async function commentSelected() {
     if (selectedIds.size === 0 || selectedDates.size === 0) return;
+    const clientIds = [...selectedIds];
+    const dates = [...selectedDates].sort();
+    const total = clientIds.length * dates.length;
+
     setBulkLoading(true);
     setBulkResult(null);
+    setBulkProgress({ current: 0, total });
 
     let totalGenerated = 0;
     let totalSkipped = 0;
+    let done = 0;
 
     try {
-      const clientIds = [...selectedIds];
-      const dates = [...selectedDates].sort();
-
       for (const date of dates) {
-        const { data, error } = await supabase.functions.invoke('generate-all-comments', {
-          body: { date, client_ids: clientIds },
-        });
+        for (const clientId of clientIds) {
+          const { data, error } = await supabase.functions.invoke('generate-all-comments', {
+            body: { date, client_ids: [clientId] },
+          });
 
-        if (error) {
-          console.error('Bulk comment error:', error);
-          setBulkResult({ error: 'Chyba při generování komentářů.' });
-          setBulkLoading(false);
-          return;
+          if (error) {
+            console.error('Bulk comment error:', error);
+            setBulkResult({ error: 'Chyba při generování komentářů.' });
+            setBulkLoading(false);
+            return;
+          }
+          totalGenerated += data.generated || 0;
+          totalSkipped += data.skipped || 0;
+          done++;
+          setBulkProgress({ current: done, total });
         }
-        totalGenerated += data.generated || 0;
-        totalSkipped += data.skipped || 0;
       }
 
       setBulkResult({
@@ -306,7 +314,7 @@ export default function TrainerDashboard({ onSelectClient }) {
                 disabled={bulkLoading}
               >
                 {bulkLoading
-                  ? '⏳ Generuji komentáře...'
+                  ? `⏳ Generuji komentáře... ${bulkProgress.current}/${bulkProgress.total}`
                   : `🤖 Okomentovat vybrané (${selectedIds.size} kl., ${selectedDates.size} ${selectedDates.size === 1 ? 'den' : 'dny'})`}
               </button>
             )}

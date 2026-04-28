@@ -39,15 +39,25 @@ Deno.serve(async (req) => {
     if (!body || typeof body !== "object") {
       return jsonResponse({ error: "Invalid JSON body" }, 400, cors);
     }
-    const { date } = body as Record<string, unknown>;
+    const { date, client_ids } = body as Record<string, unknown>;
     if (typeof date !== "string" || !ISO_DATE.test(date)) {
       return jsonResponse({ error: "Invalid date (YYYY-MM-DD)" }, 400, cors);
     }
 
-    const { data: clients } = await admin
+    let clientsQuery = admin
       .from("profiles")
       .select("id, display_name, email, goal_kcal, goal_protein")
       .eq("role", "client");
+
+    if (Array.isArray(client_ids) && client_ids.length > 0) {
+      const ids = client_ids.filter((id): id is string => typeof id === "string");
+      if (ids.length === 0) {
+        return jsonResponse({ error: "Invalid client_ids" }, 400, cors);
+      }
+      clientsQuery = clientsQuery.in("id", ids);
+    }
+
+    const { data: clients } = await clientsQuery;
 
     if (!clients || clients.length === 0) {
       return jsonResponse({ generated: 0, skipped: 0, message: "No clients found" }, 200, cors);
