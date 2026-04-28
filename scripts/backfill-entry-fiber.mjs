@@ -60,30 +60,43 @@ async function fetchEntriesNeedingFiber({ withFoodId }) {
   return all;
 }
 
-async function fetchFoodsByNameBrand(pairs) {
-  // pairs: [{name, brand}]. Vrací mapu key -> {fiber, count}.
-  // Klíč: lower(name) + '||' + lower(brand)
-  const map = new Map();
-  // Načteme všechny foods záznamy s vlákninou > 0 — pak filtrujeme lokálně
-  // (jednodušší než dynamicky stavět velký OR filtr).
+function normalizeName(s) {
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // strip diacritics
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function fetchAllFoodsWithFiber() {
+  // Načteme všechny foods záznamy s vlákninou > 0 jednou — používá se pro
+  // všechny varianty matche.
   const { data, error } = await supabase
     .from('foods')
     .select('title, brand, fiber')
     .gt('fiber', 0);
   if (error) throw error;
-  const grouped = new Map();
-  for (const row of data || []) {
-    const key = `${(row.title || '').toLowerCase()}||${(row.brand || '').toLowerCase()}`;
-    const cur = grouped.get(key);
-    if (!cur) grouped.set(key, { fiber: row.fiber, count: 1 });
-    else { cur.count++; cur.fiber = row.fiber; }
+  return data || [];
+}
+
+function buildFoodIndexes(foods) {
+  // Tři indexy podle různých klíčů. Hodnota = { fiber, count }.
+  const byNameBrand = new Map();      // exact name+brand (lower, no diacritics)
+  const byNameOnly = new Map();       // exact name (lower, no diacritics)
+  for (const row of foods) {
+    const name = normalizeName(row.title);
+    const brand = normalizeName(row.brand);
+    if (!name) continue;
+    const k1 = `${name}||${brand}`;
+    const c1 = byNameBrand.get(k1);
+    if (!c1) byNameBrand.set(k1, { fiber: row.fiber, count: 1 });
+    else { c1.count++; c1.fiber = row.fiber; }
+
+    const c2 = byNameOnly.get(name);
+    if (!c2) byNameOnly.set(name, { fiber: row.fiber, count: 1 });
+    else { c2.count++; c2.fiber = row.fiber; }
   }
-  for (const p of pairs) {
-    const key = `${(p.name || '').toLowerCase()}||${(p.brand || '').toLowerCase()}`;
-    const hit = grouped.get(key);
-    if (hit && hit.count === 1) map.set(key, hit.fiber);
-  }
-  return map;
+  return { byNameBrand, byNameOnly };
 }
 
 async function fetchFoodsByIds(ids) {
@@ -142,18 +155,46 @@ async function collectNameMatches() {
   console.log(`Kandidáti: ${entries.length}`);
   if (entries.length === 0) return [];
 
-  const pairs = entries.map((e) => ({ name: e.name, brand: e.brand || '' }));
-  const fiberMap = await fetchFoodsByNameBrand(pairs);
-  console.log(`Jednoznačných shod name+brand s fiber > 0: ${fiberMap.size}`);
+  const foods = await fetchAllFoodsWithFiber();
+  const { byNameBrand, byNameOnly } = buildFoodIndexes(foods);
 
   const updates = [];
+  let hitNameBrand = 0;
+  let hitNameOnly = 0;
+  const unmatched = [];
+
   for (const e of entries) {
-    const key = `${(e.name || '').toLowerCase()}||${(e.brand || '').toLowerCase()}`;
-    const fiberPer100g = fiberMap.get(key);
-    if (!fiberPer100g) continue;
-    const u = buildEntryUpdate(e, fiberPer100g);
+    const name = normalizeName(e.name);
+    const brand = normalizeName(e.brand || '');
+    let fiber = null;
+
+    const a = byNameBrand.get(`${name}||${brand}`);
+    if (a && a.count === 1) { fiber = a.fiber; hitNameBrand++; }
+
+    if (fiber == null) {
+      const b = byNameOnly.get(name);
+      if (b && b.count === 1) { fiber = b.fiber; hitNameOnly++; }
+    }
+
+    if (fiber == null) {
+      unmatched.push(e);
+      continue;
+    }
+    const u = buildEntryUpdate(e, fiber);
     if (u) updates.push(u);
   }
+
+  console.log(`Shod přes name+brand: ${hitNameBrand}`);
+  console.log(`Shod přes name-only:   ${hitNameOnly}`);
+  console.log(`Bez shody:             ${unmatched.length}`);
+  if (DRY_RUN && unmatched.length > 0) {
+    console.log(`\nNespárované kandidáti (vypisuji do 30):`);
+    for (const e of unmatched.slice(0, 30)) {
+      console.log(`  "${e.name}"${e.brand ? ` [${e.brand}]` : ''}  (${e.grams} g)`);
+    }
+    if (unmatched.length > 30) console.log(`  … a dalších ${unmatched.length - 30}`);
+  }
+
   return updates;
 }
 
