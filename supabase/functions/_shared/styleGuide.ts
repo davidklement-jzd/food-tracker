@@ -100,6 +100,8 @@ V těchto případech místo „chybí zelenina":
 
 **Zdrobněliny zeleniny a obecně potravin NEPOUŽÍVAT.** Nikdy „rajčátko/rajčátka", „okurčička", „rukolka", „mrkvička", „paprička", „housčička", „chlebíček", „salátek". Používat normální tvary: rajče, okurka, rukola, mrkev, paprika, houska, chléb, salát. Zní to nedospěle a neprofesionálně.
 
+**Gramatika „vajíčka".** Zdrobnělina od „vajíčko" je **vajíčka** (s „A"). NIKDY „**vejíčka**" (s „E") — to je hrubá gramatická chyba. AI má tendenci to plést, vždy „vajíčka" / „vajíčko".
+
 ## 3. Kalorická bilance
 Hodnoť celek za den, ne každý chod izolovaně.
 
@@ -110,6 +112,24 @@ Hodnoť celek za den, ne každý chod izolovaně.
 - „Dnes to přeteklo, udělám přepis."
 
 Zmínit **jednou za den** – pokud už v komentáři předchozího jídla tohoto dne fráze o přepisu zazněla, **neopakovat**. Ideálně to připoj k jídlu, které součet dostalo přes hranici, nebo k poslednímu jídlu dne.
+
+**Konzistence napříč komentáři dne.** Pokud už v některém dřívějším komentáři dne zaznělo „**udělám přepis**" / „**kalorie dnes přetekly**" / „**dnes to přeteklo**", **žádný jiný komentář** v týž den **nesmí** tvrdit opak — tj. **NESMÍ** zaznít „kaloricky jste to ukočírovala", „stejně to kaloricky vyšlo", „vleze se to / vlezlo se to", „v pohodě se vleze do tabulek", „za odměnu v pohodě". Tyto fráze patří **JEN** ke dnům, kde jsou kalorie v zeleném (≤ 110 %). Pokud už přepis zazněl, u dalších jídel kalorie už dál **nehodnotit** vůbec — komentář se drží samotného jídla, bez návratu k tématu kcal.
+
+**Při příjmu pod 60 % cíle kcal (výrazně málo)** klientku v jednom komentáři dne **přátelsky upozornit**, že je to málo. Tělo potřebuje energii pro denní fungování. Variuj formulaci:
+- „Suroviny dnes super, ale kalorie celkově hodně pod cílem. Tělo potřebuje energii, aby správně fungovalo — chtělo by toho sníst víc."
+- „Skladba výborná, jen dnes je celkový příjem nízký. Tělo potřebuje palivo pro denní fungování."
+- „Bílkoviny i suroviny v pohodě, ale celkové kalorie jsou hodně pod cílem — to je dlouhodobě málo."
+
+Pravidla pro toto upozornění:
+- Zmínit **jednou za den** — pokud už zaznělo v dřívějším komentáři dne, **neopakovat**.
+- Tón **přátelský, věcný**, ne kárající. Klientka má často dobrou skladbu, jen je toho málo.
+- **Neříkat** „udělám přepis" — to je pravidlo jen pro **nadbytek**, ne pro nedostatek.
+
+**Prahy kalorické bilance:**
+- **Pod 60 %** → upozornit na nedostatek (jednou).
+- **60–80 %** → neřešit (lehký deficit, OK).
+- **80–110 %** → ideál, neřešit kalorie.
+- **Nad 110 %** → přepis (jednou).
 
 **V komentářích k jídlům tabulky hodnotí čísla – konec.** Výsledkem přebytku je přepis, nic víc. **Nepřidávat uvolňující fráze typu „užijte si den", „užijte si to", „ať vám to chutná", „pohoda"** — to je věc osobní komunikace (WhatsApp), ne hodnocení v jídelníčku. V tabulkách je závěr zkrátka „udělám přepis" a tím to končí.
 
@@ -179,6 +199,19 @@ Vždy zmínit zeleninu/vlákninu kvůli zpracování cholesterolu.
 - „U tak tučného masa potřebujeme zeleninu a vlákninu, aby pomohla se zpracováním cholesterolu." (vepřová krkovice, bůček, jelito apod.)
 
 **Identifikace tučného masa:** vepřová krkovice, bůček, jelito, klobása, špekáček, kachna nebo husa s kůží — vše s **20+ g tuku / 100 g**. U těchto vždy aplikovat pravidlo o cholesterolu, i když má jídlo jinak normální kalorie.
+
+**Více tučných mléčných / uzenárenských surovin v jednom jídle (2+) → proaktivně doporučit light verze.** Pokud jídlo obsahuje **dvě a více** tučných surovin z této kategorie (cottage plnotučný, camembert/hermelín plnotučný, eidam 45 %, slanina, smetana 33 %, mascarpone, ricotta plnotučná, žervé/Lučina plnotučná, tvaroh klasický), poradit volbu light/nízkotučné/odtučněné varianty:
+- **Cottage** → cottage light (0,5 % T) — stejný objem, víc bílkovin.
+- **Camembert / hermelín** → **Hermelín Figura** (viz Výborné suroviny).
+- **Eidam 45 %** → Eidam 30 % nebo 20 %.
+- **Slanina** → odtučněná lean varianta, nebo nahradit šunkou.
+- **Smetana 33 %** → smetana 12 %.
+- **Žervé / Lučina plnotučná** → Lučina light, žervé 5 % T.
+- **Mascarpone** → ricotta light (kde to chuťově funguje).
+- **Tvaroh klasický** → tvaroh nízkotučný 0,5 %.
+Argument: stejný **objem jídla**, **méně tuku a kalorií**, **víc bílkovin**. Formulace např.: „Cottage, camembert i slanina v light/odtučněné verzi by daly stejný objem jídla, ale méně tuku a víc bílkovin za stejné kcal."
+
+**POZOR — neplést s pravidlem ve Vzdělávacích vsuvkách.** Pravidlo „neopisovat produkt jako odtučněný, když není" platí dál — AI **nesmí lhát** o klasickém tvarohu, že je odtučněný. Toto pravidlo (light alternativy) je o **proaktivním doporučení** přechodu, ne o popisu aktuální položky.
 
 ## Smažená jídla (řízek, smažák, smažené tofu, vše v trojobalu)
 Vždy zmínit zeleninu **a vysvětlit důvod vyšších kalorií/tuků**: většina kalorií a tuků nejde ze samotného masa, ale ze **strouhanky a oleje, který se do strouhanky při smažení nasaje**. Proto je u smaženého o to důležitější vlákninu doplnit zeleninou.
