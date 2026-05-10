@@ -4,14 +4,16 @@
 //
 // Klíčová logika:
 //  1. UPSERT dnešní řádek se VŠEMI 5 novými cíli.
-//  2. „First-edit" backfill: pokud pro klientku NEEXISTUJE žádný řádek
-//     v goal_history s datem < dnes, vlož STARTER řádek s STARÝMI
-//     hodnotami z profilu, datovaný klientčiným prvním zápisem v deníku
-//     (nebo její account creation, případně fallback `1970-01-01`).
-//     Tím se zaručí, že předchozí dny si zachovají původní hodnotu.
+//  2. „First-edit" backfill PER KLÍČ:
+//     pro každý cíl (kcal, protein, carbs, fat, fiber) zvlášť ověříme,
+//     jestli existuje dřívější řádek s vyplněnou hodnotou pro tento klíč.
+//     Pokud NE a starý profil tu hodnotu má, doplníme ji do starter řádku
+//     datovaného klientčiným prvním zápisem v deníku (nebo created_at
+//     profilu, fallback `1970-01-01`).
 //
-// Sloupce v goal_history přibyly v migraci 023_goal_history_full.sql
-// (dříve byl jen goal_kcal). Helper je vždy zapisuje všechny.
+//     Per-klíč backfill řeší i případ klientek, které měly v history
+//     jen goal_kcal (legacy stav před migrací 023). Tj. kcal historie
+//     zůstane, ostatní 4 makra se doplní starterem.
 
 import { supabase } from './supabase';
 
@@ -29,10 +31,33 @@ function isoToday() {
   return new Date().toISOString().split('T')[0];
 }
 
+async function findStarterDate(userId, oldProfile, today) {
+  let starterDate = '1970-01-01';
+  const { data: firstDiary } = await supabase
+    .from('diary_days')
+    .select('date')
+    .eq('user_id', userId)
+    .order('date', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (firstDiary?.date) {
+    starterDate = firstDiary.date;
+  } else if (oldProfile?.created_at) {
+    starterDate = oldProfile.created_at.split('T')[0];
+  }
+  // Pokud by starter spadl na dnešek nebo později, posuň o den zpět,
+  // ať nepřepíšeme dnešní řádek s novými hodnotami.
+  if (starterDate >= today) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - 1);
+    starterDate = d.toISOString().split('T')[0];
+  }
+  return starterDate;
+}
+
 /**
- * Vloží/aktualizuje dnešní řádek s novými cíli. Pokud jde o první
- * úpravu cílů u klientky, vloží i „starter" řádek se starými hodnotami,
- * aby předchozí dny zůstaly korektní.
+ * Vloží/aktualizuje dnešní řádek s novými cíli a zajistí backfill starých
+ * hodnot per-klíč, aby předchozí dny zůstaly korektní.
  *
  * @param {string} userId — ID klientky
  * @param {object} oldProfile — profil PŘED uložením (pro starter řádek)
@@ -59,51 +84,40 @@ export async function logGoalChange(userId, oldProfile, newGoals) {
     );
   }
 
-  // Krok 2: zjisti, jestli existuje nějaký dřívější řádek (date < today).
-  const { data: earlier } = await supabase
-    .from('goal_history')
-    .select('id')
-    .eq('user_id', userId)
-    .lt('date', today)
-    .limit(1);
-
-  if (earlier && earlier.length > 0) return; // Backfill není potřeba.
-
-  // Krok 3: backfill — najdi datum prvního zápisu v deníku, nebo profile.created_at,
-  // nebo fallback na 1970-01-01.
-  let starterDate = '1970-01-01';
-
-  const { data: firstDiary } = await supabase
-    .from('diary_days')
-    .select('date')
-    .eq('user_id', userId)
-    .order('date', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  if (firstDiary?.date) {
-    starterDate = firstDiary.date;
-  } else if (oldProfile?.created_at) {
-    starterDate = oldProfile.created_at.split('T')[0];
-  }
-
-  // Pokud by starter spadl na dnešek (klientka je úplně nová a deník začala dnes),
-  // posuneme ho o den zpět, ať dnešní upsert neoverwriteneme.
-  if (starterDate === today) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - 1);
-    starterDate = d.toISOString().split('T')[0];
-  }
-
+  // Krok 2: per-klíč backfill — pro každý cíl zvlášť zjisti, jestli existuje
+  // dřívější řádek (date < today) s vyplněnou hodnotou pro tento klíč.
   const oldGoals = pickGoals(oldProfile);
-  if (Object.keys(oldGoals).length === 0) return;
+  const keysNeedingBackfill = [];
 
-  const { error: starterErr } = await supabase.from('goal_history').upsert(
-    { user_id: userId, date: starterDate, ...oldGoals },
-    { onConflict: 'user_id,date' },
-  );
-  if (starterErr && oldGoals.goal_kcal != null) {
+  for (const key of GOAL_KEYS) {
+    if (oldGoals[key] == null) continue; // Není čím doplnit.
+    const { data: earlier } = await supabase
+      .from('goal_history')
+      .select('id')
+      .eq('user_id', userId)
+      .lt('date', today)
+      .not(key, 'is', null)
+      .limit(1);
+    if (!earlier || earlier.length === 0) {
+      keysNeedingBackfill.push(key);
+    }
+  }
+
+  if (keysNeedingBackfill.length === 0) return;
+
+  // Krok 3: vlož starter řádek pro klíče, které backfill potřebují.
+  // (Pokud už pro ten datum řádek existuje, upsert ho dorovná.)
+  const starterDate = await findStarterDate(userId, oldProfile, today);
+  const starterRow = { user_id: userId, date: starterDate };
+  for (const key of keysNeedingBackfill) starterRow[key] = oldGoals[key];
+
+  const { error: starterErr } = await supabase
+    .from('goal_history')
+    .upsert(starterRow, { onConflict: 'user_id,date' });
+  if (starterErr && starterRow.goal_kcal != null) {
+    // Fallback pro stav před migrací 023.
     await supabase.from('goal_history').upsert(
-      { user_id: userId, date: starterDate, goal_kcal: oldGoals.goal_kcal },
+      { user_id: userId, date: starterDate, goal_kcal: starterRow.goal_kcal },
       { onConflict: 'user_id,date' },
     );
   }
