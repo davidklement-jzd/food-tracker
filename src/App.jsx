@@ -17,6 +17,7 @@ import ActivitySearchModal from './components/ActivitySearchModal';
 import CopyMealModal from './components/CopyMealModal';
 import { useActivityDiary } from './hooks/useActivityDiary';
 import { useTemplates } from './hooks/useTemplates';
+import { useGoalHistory } from './hooks/useGoalHistory';
 import './App.css';
 
 const MEALS = [
@@ -88,6 +89,11 @@ export default function App() {
   const [copyMealModal, setCopyMealModal] = useState(null); // meal id or null
   const [saveTemplateData, setSaveTemplateData] = useState(null); // { meal, entries }
   const { templates, saveTemplate, deleteTemplate } = useTemplates(user?.id);
+
+  // History cílů na úrovni App, ať přežije unmount diary view (loading)
+  // při změně dne — jinak by DailySummary při remountu krátce blikla
+  // hodnotou z fallback profilu.
+  const { goalHistory } = useGoalHistory(user?.id);
 
   if (authLoading) {
     return (
@@ -308,7 +314,7 @@ export default function App() {
             </div>
 
             <div className="sidebar">
-              <DailySummary entries={getAllEntries()} profile={profile} selectedDate={selectedDate} />
+              <DailySummary entries={getAllEntries()} profile={profile} selectedDate={selectedDate} goalHistory={goalHistory} />
               <WeightTracker userId={user.id} profile={profile} selectedDate={selectedDate} />
             </div>
           </div>

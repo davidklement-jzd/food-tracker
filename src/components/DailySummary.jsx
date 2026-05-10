@@ -2,10 +2,12 @@ import { useGoalHistory, getAllGoalsForDate } from '../hooks/useGoalHistory';
 
 const DEFAULT_GOALS = { goal_kcal: 2000, goal_protein: 100, goal_carbs: 220, goal_fat: 80, goal_fiber: 30 };
 
-export default function DailySummary({ entries, profile, selectedDate }) {
-  // Pro daný den vezmi cíle z goal_history (historizované). Fallback je
-  // aktuální profile, fallback fallback je DEFAULT_GOALS.
-  const { goalHistory } = useGoalHistory(profile?.id);
+export default function DailySummary({ entries, profile, selectedDate, goalHistory: goalHistoryProp }) {
+  // goalHistory může přijít z parentu (přežije unmount diary view při změně dne).
+  // Když ne, mountneme vlastní hook — funguje, ale při změně dne způsobí flash
+  // hodnoty z fallback profilu, než se history doloží.
+  const ownHook = useGoalHistory(goalHistoryProp ? null : profile?.id);
+  const goalHistory = goalHistoryProp ?? ownHook.goalHistory;
   const fallback = { ...DEFAULT_GOALS, ...(profile || {}) };
   const dateStr = selectedDate || new Date().toISOString().split('T')[0];
   const goals = getAllGoalsForDate(dateStr, goalHistory, fallback);

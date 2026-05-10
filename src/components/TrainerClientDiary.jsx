@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useClientDiary } from '../hooks/useTrainerData';
+import { useGoalHistory } from '../hooks/useGoalHistory';
 import { useActivityDiary } from '../hooks/useActivityDiary';
 import { useTemplates } from '../hooks/useTemplates';
 import { useAuth } from '../contexts/AuthContext';
@@ -72,6 +73,11 @@ export default function TrainerClientDiary({ client, onBack }) {
     removeActivity,
     updateActivity,
   } = useActivityDiary(clientProfile.id, selectedDate);
+
+  // Načteme history cílů na úrovni TrainerClientDiary, aby přežila unmount
+  // diary view (loading state) při změně dne — jinak by DailySummary
+  // při remountu krátce blikla hodnotou z fallback profilu.
+  const { goalHistory } = useGoalHistory(clientProfile.id);
 
   function changeDate(offset) {
     const [y, m, d] = selectedDate.split('-').map(Number);
@@ -230,7 +236,7 @@ export default function TrainerClientDiary({ client, onBack }) {
             </div>
 
             <div className="sidebar">
-              <DailySummary entries={getAllEntries()} profile={clientProfile} selectedDate={selectedDate} />
+              <DailySummary entries={getAllEntries()} profile={clientProfile} selectedDate={selectedDate} goalHistory={goalHistory} />
               <WeightTracker userId={clientProfile.id} profile={clientProfile} selectedDate={selectedDate} />
             </div>
           </div>
