@@ -292,3 +292,28 @@ export function buildDayContextPrompt(input: BuildDayContextInput): string {
 
   return sections.join("\n");
 }
+
+const GOAL_KEYS = ["goal_kcal", "goal_protein", "goal_carbs", "goal_fat", "goal_fiber"] as const;
+
+// Vrátí cíle (goal_kcal, _protein, _carbs, _fat, _fiber) platné pro daný den
+// pro danou klientku — vezme nejnovější řádek v goal_history s date <= isoDate.
+// Klíče, pro které není v history žádný řádek, zůstanou undefined a volající
+// si je doplní z requestu nebo profilu.
+//
+// Vyžaduje admin (service_role) klienta — RLS by jinak vrátila prázdno.
+// deno-lint-ignore no-explicit-any
+export async function resolveGoalsForDate(admin: any, userId: string, isoDate: string) {
+  const { data } = await admin
+    .from("goal_history")
+    .select("goal_kcal, goal_protein, goal_carbs, goal_fat, goal_fiber, date")
+    .eq("user_id", userId)
+    .lte("date", isoDate)
+    .order("date", { ascending: true });
+  const out: Record<string, number | undefined> = {};
+  for (const row of (data || [])) {
+    for (const key of GOAL_KEYS) {
+      if (row[key] != null) out[key] = row[key];
+    }
+  }
+  return out;
+}

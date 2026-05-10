@@ -6,6 +6,7 @@ import {
   enforceAiDailyLimit,
   jsonResponse,
   requireTrainer,
+  resolveGoalsForDate,
   safeNumber,
 } from "../_shared/http.ts";
 
@@ -98,6 +99,11 @@ Deno.serve(async (req) => {
         if (c.comment_text) commentsMap[c.meal_id] = c.comment_text;
       }
 
+      // Cíle pro daný DEN — historizovaně z goal_history; fallback profile.
+      const historyGoals = await resolveGoalsForDate(admin, client.id, date);
+      const dayGoalKcal = safeNumber(historyGoals.goal_kcal ?? client.goal_kcal, 2000);
+      const dayGoalProtein = safeNumber(historyGoals.goal_protein ?? client.goal_protein, 100);
+
       // Which meals in this day have entries?
       const mealsWithEntries = new Set(entries.map((e) => e.meal_id));
 
@@ -114,8 +120,8 @@ Deno.serve(async (req) => {
 
         const userPrompt = buildDayContextPrompt({
           clientName: client.display_name || "",
-          goalKcal: safeNumber(client.goal_kcal, 2000),
-          goalProtein: safeNumber(client.goal_protein, 100),
+          goalKcal: dayGoalKcal,
+          goalProtein: dayGoalProtein,
           entries,
           comments: commentsMap,
           currentMealId: mealId,

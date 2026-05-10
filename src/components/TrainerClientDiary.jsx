@@ -230,7 +230,7 @@ export default function TrainerClientDiary({ client, onBack }) {
             </div>
 
             <div className="sidebar">
-              <DailySummary entries={getAllEntries()} profile={clientProfile} />
+              <DailySummary entries={getAllEntries()} profile={clientProfile} selectedDate={selectedDate} />
               <WeightTracker userId={clientProfile.id} profile={clientProfile} selectedDate={selectedDate} />
             </div>
           </div>

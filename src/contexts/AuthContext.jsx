@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { logGoalChange } from '../lib/goalHistoryWriter';
 
 const AuthContext = createContext(null);
 
@@ -64,8 +65,11 @@ export function AuthProvider({ children }) {
     return { data, error };
   }
 
-  async function updateProfile(updates) {
+  async function updateProfile(updates, oldProfileSnapshot) {
     if (!session?.user?.id) return { error: { message: 'Nejste přihlášen/a' } };
+    // Pokud volající nepředal snapshot starého profilu, použij aktuální stav.
+    // Slouží jako starter řádek do goal_history při první úpravě cílů.
+    const oldProfile = oldProfileSnapshot ?? profile ?? {};
     const { data, error } = await supabase
       .from('profiles')
       .update(updates)
@@ -74,14 +78,7 @@ export function AuthProvider({ children }) {
       .single();
     if (!error && data) {
       setProfile(data);
-      // Log goal_kcal change to history
-      if (updates.goal_kcal != null) {
-        const today = new Date().toISOString().split('T')[0];
-        await supabase.from('goal_history').upsert(
-          { user_id: session.user.id, goal_kcal: updates.goal_kcal, date: today },
-          { onConflict: 'user_id,date' }
-        );
-      }
+      await logGoalChange(session.user.id, oldProfile, updates);
     }
     return { data, error };
   }

@@ -7,6 +7,7 @@ import {
   isUuid,
   jsonResponse,
   requireTrainer,
+  resolveGoalsForDate,
   safeNumber,
 } from "../_shared/http.ts";
 
@@ -53,7 +54,7 @@ Deno.serve(async (req) => {
 
     // Fetch authoritative day state from DB (all entries + existing comments)
     const [dayRes, entriesRes, commentsRes] = await Promise.all([
-      admin.from("diary_days").select("id, user_id").eq("id", day_id).single(),
+      admin.from("diary_days").select("id, user_id, date").eq("id", day_id).single(),
       admin
         .from("diary_entries")
         .select("meal_id, name, grams, kcal, protein, carbs, fat, fiber")
@@ -80,14 +81,17 @@ Deno.serve(async (req) => {
       if (c.comment_text) commentsMap[c.meal_id] = c.comment_text;
     }
 
-    const goals = (client_goals && typeof client_goals === "object")
+    // Cíle pro daný DEN: nejdřív zkusit goal_history (poslední řádek <= date),
+    // teprve když selže, fallback na client_goals z requestu.
+    const requestGoals = (client_goals && typeof client_goals === "object")
       ? client_goals as Record<string, unknown>
       : {};
+    const historyGoals = await resolveGoalsForDate(admin, dayRes.data.user_id, dayRes.data.date);
 
     const userPrompt = buildDayContextPrompt({
       clientName: typeof client_name === "string" ? client_name : "",
-      goalKcal: safeNumber(goals.kcal, 2000),
-      goalProtein: safeNumber(goals.protein, 100),
+      goalKcal: safeNumber(historyGoals.goal_kcal ?? requestGoals.kcal, 2000),
+      goalProtein: safeNumber(historyGoals.goal_protein ?? requestGoals.protein, 100),
       entries,
       comments: commentsMap,
       currentMealId: meal_id,

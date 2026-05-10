@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { logGoalChange } from '../lib/goalHistoryWriter';
 
 const GOAL_FIELDS = [
   { key: 'goal_kcal', label: 'Kalorický cíl', unit: 'kcal', default: 2000 },
@@ -64,6 +65,10 @@ export default function SettingsPage({ onBack, targetUserId, targetProfile, onPr
       updates[f.key] = goals[f.key] === '' ? f.default : Number(goals[f.key]);
     }
 
+    // Zapamatuj si STARÉ hodnoty cílů (před uložením), ať jde použít jako
+    // starter řádek do goal_history, pokud to je první úprava cílů u klientky.
+    const oldProfileSnapshot = profile ? { ...profile } : {};
+
     let error;
     if (isEditingOther) {
       // Trainer editing client profile directly
@@ -77,16 +82,11 @@ export default function SettingsPage({ onBack, targetUserId, targetProfile, onPr
       if (!res.error && res.data && onProfileUpdate) {
         onProfileUpdate(res.data);
       }
-      // Also log goal_kcal change to history
-      if (!res.error && updates.goal_kcal != null) {
-        const today = new Date().toISOString().split('T')[0];
-        await supabase.from('goal_history').upsert(
-          { user_id: targetUserId, goal_kcal: updates.goal_kcal, date: today },
-          { onConflict: 'user_id,date' }
-        );
+      if (!res.error) {
+        await logGoalChange(targetUserId, oldProfileSnapshot, updates);
       }
     } else {
-      const res = await updateProfile(updates);
+      const res = await updateProfile(updates, oldProfileSnapshot);
       error = res.error;
     }
 

@@ -308,7 +308,7 @@ export default function App() {
             </div>
 
             <div className="sidebar">
-              <DailySummary entries={getAllEntries()} profile={profile} />
+              <DailySummary entries={getAllEntries()} profile={profile} selectedDate={selectedDate} />
               <WeightTracker userId={user.id} profile={profile} selectedDate={selectedDate} />
             </div>
           </div>
