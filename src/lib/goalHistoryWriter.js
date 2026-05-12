@@ -90,10 +90,17 @@ export async function logGoalChange(userId, oldProfile, newGoals) {
     { onConflict: 'user_id,date' },
   );
   if (upsertErr && newRow.goal_kcal != null) {
-    await supabase.from('goal_history').upsert(
+    const { error: legacyErr } = await supabase.from('goal_history').upsert(
       { user_id: userId, date: today, goal_kcal: newRow.goal_kcal },
       { onConflict: 'user_id,date' },
     );
+    if (legacyErr) {
+      // eslint-disable-next-line no-console
+      console.error('goal_history upsert failed (both new+legacy):', legacyErr.message, '— původní:', upsertErr.message);
+      return;
+    }
+    // eslint-disable-next-line no-console
+    console.warn('goal_history upsert: legacy fallback použit. Původní chyba:', upsertErr.message);
   }
 
   // Krok 2: per-klíč gap-aware backfill.
