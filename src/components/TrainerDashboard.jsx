@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useClientList } from '../hooks/useTrainerData';
+import { useClientList, setClientStatus } from '../hooks/useTrainerData';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -42,7 +42,15 @@ function generateInviteCode() {
 
 export default function TrainerDashboard({ onSelectClient }) {
   const { user } = useAuth();
-  const { clients, loading, refresh } = useClientList();
+  const [activeTab, setActiveTab] = useState('active'); // 'active' | 'archived'
+  const { clients: activeClients, loading: activeLoading, refresh: refreshActive } = useClientList('active');
+  const { clients: archivedClients, loading: archivedLoading, refresh: refreshArchived } = useClientList('archived');
+  const isArchivedView = activeTab === 'archived';
+  const clients = isArchivedView ? archivedClients : activeClients;
+  const loading = isArchivedView ? archivedLoading : activeLoading;
+  const refresh = useCallback(async () => {
+    await Promise.all([refreshActive(), refreshArchived()]);
+  }, [refreshActive, refreshArchived]);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
   const [bulkResult, setBulkResult] = useState(null);
@@ -51,6 +59,29 @@ export default function TrainerDashboard({ onSelectClient }) {
   const [deleteTarget, setDeleteTarget] = useState(null); // client object pending delete
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  const [statusBusyId, setStatusBusyId] = useState(null);
+
+  // Reset výběru při překliknutí mezi záložkami
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setBulkResult(null);
+  }, [activeTab]);
+
+  async function archiveClient(client, e) {
+    e.stopPropagation();
+    setStatusBusyId(client.id);
+    const ok = await setClientStatus(client.id, 'archived');
+    setStatusBusyId(null);
+    if (ok) await refresh();
+  }
+
+  async function restoreClient(client, e) {
+    e.stopPropagation();
+    setStatusBusyId(client.id);
+    const ok = await setClientStatus(client.id, 'active');
+    setStatusBusyId(null);
+    if (ok) await refresh();
+  }
 
   // Invite state
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -238,7 +269,7 @@ export default function TrainerDashboard({ onSelectClient }) {
   return (
     <div className="trainer-dashboard">
       <div className="trainer-dashboard-header">
-        <h2 className="trainer-title">Klientky ({clients.length})</h2>
+        <h2 className="trainer-title">Klientky</h2>
         <div className="trainer-header-actions">
           <button
             className="trainer-invite-btn"
@@ -256,6 +287,21 @@ export default function TrainerDashboard({ onSelectClient }) {
             </button>
           )}
         </div>
+      </div>
+
+      <div className="trainer-tabs">
+        <button
+          className={`trainer-tab ${activeTab === 'active' ? 'active' : ''}`}
+          onClick={() => setActiveTab('active')}
+        >
+          Aktivní ({activeClients.length})
+        </button>
+        <button
+          className={`trainer-tab ${activeTab === 'archived' ? 'active' : ''}`}
+          onClick={() => setActiveTab('archived')}
+        >
+          Bývalé ({archivedClients.length})
+        </button>
       </div>
 
       {showInviteList && invites.length > 0 && (
@@ -282,7 +328,7 @@ export default function TrainerDashboard({ onSelectClient }) {
         </div>
       )}
 
-      {clients.length > 0 && (
+      {clients.length > 0 && !isArchivedView && (
         <>
           <div className="trainer-date-picker">
             <span className="trainer-date-label">Den k okomentování:</span>
@@ -330,25 +376,29 @@ export default function TrainerDashboard({ onSelectClient }) {
         </div>
       )}
       {clients.length === 0 ? (
-        <div className="trainer-empty">Zatím žádné klientky.</div>
+        <div className="trainer-empty">
+          {isArchivedView ? 'Žádné bývalé klientky.' : 'Zatím žádné klientky.'}
+        </div>
       ) : (
         <div className="trainer-client-list">
           {clients.map((client) => (
             <div
               key={client.id}
-              className={`trainer-client-card ${selectedIds.has(client.id) ? 'selected' : ''}`}
+              className={`trainer-client-card ${selectedIds.has(client.id) ? 'selected' : ''} ${isArchivedView ? 'archived' : ''}`}
               onClick={() => onSelectClient(client)}
             >
-              <label
-                className="client-checkbox"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedIds.has(client.id)}
-                  onChange={(e) => toggleSelect(client.id, e)}
-                />
-              </label>
+              {!isArchivedView && (
+                <label
+                  className="client-checkbox"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(client.id)}
+                    onChange={(e) => toggleSelect(client.id, e)}
+                  />
+                </label>
+              )}
               <div className="client-avatar">
                 {(client.display_name || client.email)[0].toUpperCase()}
               </div>
@@ -358,6 +408,25 @@ export default function TrainerDashboard({ onSelectClient }) {
                 </span>
                 <span className="client-email">{client.email}</span>
               </div>
+              {isArchivedView ? (
+                <button
+                  className="client-status-btn client-restore-btn"
+                  onClick={(e) => restoreClient(client, e)}
+                  disabled={statusBusyId === client.id}
+                  title="Vrátit mezi aktivní klientky"
+                >
+                  ↩
+                </button>
+              ) : (
+                <button
+                  className="client-status-btn client-archive-btn"
+                  onClick={(e) => archiveClient(client, e)}
+                  disabled={statusBusyId === client.id}
+                  title="Přesunout mezi bývalé klientky"
+                >
+                  📦
+                </button>
+              )}
               <button
                 className="client-delete-btn"
                 onClick={(e) => openDelete(client, e)}

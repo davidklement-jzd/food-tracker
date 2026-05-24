@@ -2769,6 +2769,71 @@ html, body {
   color: #c0392b;
 }
 
+.client-status-btn {
+  background: none;
+  border: none;
+  font-size: var(--text-18);
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  opacity: 0.55;
+  transition: opacity 0.15s, background 0.15s, transform 0.15s;
+}
+
+.client-status-btn:hover:not(:disabled) {
+  opacity: 1;
+  background: #f0f3f7;
+}
+
+.client-status-btn:disabled {
+  opacity: 0.3;
+  cursor: wait;
+}
+
+.client-restore-btn:hover:not(:disabled) {
+  background: #e6f7ed;
+}
+
+.trainer-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: #f2f4f7;
+  border-radius: 10px;
+  margin: 0 0 14px 0;
+}
+
+.trainer-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: var(--text-15);
+  font-weight: 600;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.trainer-tab:hover:not(.active) {
+  background: #e8ecf1;
+}
+
+.trainer-tab.active {
+  background: #fff;
+  color: #111;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.trainer-client-card.archived {
+  opacity: 0.85;
+}
+
+.trainer-client-card.archived .client-avatar {
+  filter: grayscale(0.4);
+}
+
 .delete-modal-overlay {
   position: fixed;
   inset: 0;

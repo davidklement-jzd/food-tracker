@@ -2,16 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { DIARY_ENTRY_SELECT, buildDiaryEntry } from './useSupabaseDiary';
 
-export function useClientList() {
+export function useClientList(status = 'active') {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from('profiles')
       .select('*')
-      .eq('role', 'client')
-      .order('display_name');
+      .eq('role', 'client');
+    if (status) query = query.eq('status', status);
+    const { data, error } = await query.order('display_name');
 
     if (error) {
       console.error('Error fetching clients:', error);
@@ -19,13 +20,22 @@ export function useClientList() {
       setClients(data || []);
     }
     setLoading(false);
-  }, []);
+  }, [status]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
 
   return { clients, loading, refresh };
+}
+
+export async function setClientStatus(clientId, status) {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ status })
+    .eq('id', clientId);
+  if (error) console.error('Error updating client status:', error);
+  return !error;
 }
 
 export function useClientDiary(clientId, selectedDate) {
