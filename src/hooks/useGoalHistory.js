@@ -45,22 +45,31 @@ function isoToday() {
 //  - DNES a DOPŘEDU → fallback (= profile.goal_*). Profil je aktuální pravda;
 //    cíl právě nastavený (i bez záznamu v history) má platit.
 //  - MINULÉ DNY → walk history: najít poslední řádek s date <= dateStr,
-//    který má hodnotu pro tento klíč. Pokud nic, fallback.
+//    který má hodnotu pro tento klíč.
+//      • Pokud žádný takový není (den je před prvním záznamem pro tento klíč),
+//        použít NEJSTARŠÍ známou hodnotu z history — NE aktuální profil.
+//      • Teprve když pro klíč neexistuje v history vůbec žádná hodnota,
+//        spadnout na fallback (profil).
 //
-// Tím vyřešíme i klientky, kde profile.goal_* ≠ poslední row v history
-// (typické pro úpravy provedené před zavedením historizace).
+// Proč pro minulost nikdy nesahat na aktuální profil:
+//   Dřív minulé dny braly chybějící hodnotu z profilu. To znamenalo, že každá
+//   budoucí změna cíle se zpětně propsala do všech minulých dní bez záznamu
+//   (typicky makra ve starých řádcích, kde se ukládaly jen kalorie). Pinnutím
+//   na nejstarší zaznamenanou hodnotu zůstane minulost stabilní napříč
+//   budoucími změnami profilu.
 export function getGoalForDate(dateStr, goalHistory, fallback, key = 'goal_kcal') {
   if (dateStr >= isoToday()) return fallback ?? null;
-  let goal = fallback;
+  let walked = null;     // poslední non-null hodnota s date <= dateStr
+  let earliest = null;   // úplně první (nejstarší) non-null hodnota v history
   for (const entry of goalHistory || []) {
-    if (entry.date <= dateStr) {
-      const val = entry[key];
-      if (val != null) goal = val;
-    } else {
-      break;
-    }
+    const val = entry[key];
+    if (val == null) continue;
+    if (earliest === null) earliest = val; // history je řazená vzestupně podle date
+    if (entry.date <= dateStr) walked = val;
   }
-  return goal;
+  if (walked !== null) return walked;
+  if (earliest !== null) return earliest;
+  return fallback ?? null;
 }
 
 // Vrátí všech 5 cílů pro daný den jako objekt. fallbackProfile je celý profil

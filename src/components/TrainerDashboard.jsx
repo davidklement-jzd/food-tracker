@@ -1,7 +1,107 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useClientList, setClientStatus } from '../hooks/useTrainerData';
+import { getGoalForDate } from '../hooks/useGoalHistory';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+
+// Barvy kalorického kruhu (musí sedět s DailySummary).
+const KCAL_COLORS = { red: '#e53935', green: '#43a047', orange: '#fb8c00' };
+
+function shortDate(dateStr) {
+  const [, m, d] = dateStr.split('-').map(Number);
+  return `${d}.${m}.`;
+}
+
+// Po hromadném okomentování spočítá přehled za každou (klientka × den):
+// barvu kalorií (oranžová/zelená/červená jako kruh v deníku), zda klientka
+// ten den zapsala váhu a zda má textovou poznámku. Vše dávkově (5 dotazů
+// nezávisle na počtu klientek), data čteme přes trenérské RLS.
+async function buildBulkSummary(clientObjs, dates) {
+  const ids = clientObjs.map((c) => c.id);
+  if (ids.length === 0 || dates.length === 0) return [];
+  const keyOf = (u, d) => `${u}|${d}`;
+
+  // 1) diary_days pro všechny klientky a dny
+  const { data: days } = await supabase
+    .from('diary_days')
+    .select('id, user_id, date')
+    .in('user_id', ids)
+    .in('date', dates);
+  const dayRows = days || [];
+  const dayIds = dayRows.map((d) => d.id);
+  const dayIdByKey = new Map(dayRows.map((d) => [keyOf(d.user_id, d.date), d.id]));
+
+  // 2) kalorie z entries + 3) poznámky — pro všechny day_id najednou
+  const [entriesRes, notesRes] = await Promise.all([
+    dayIds.length
+      ? supabase.from('diary_entries').select('day_id, kcal').in('day_id', dayIds)
+      : Promise.resolve({ data: [] }),
+    dayIds.length
+      ? supabase.from('meal_notes').select('day_id, note_text').in('day_id', dayIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const kcalByDay = new Map();
+  const hasEntryByDay = new Set();
+  for (const e of entriesRes.data || []) {
+    hasEntryByDay.add(e.day_id);
+    kcalByDay.set(e.day_id, (kcalByDay.get(e.day_id) || 0) + (e.kcal || 0));
+  }
+  const noteByDay = new Map();
+  for (const n of notesRes.data || []) {
+    const t = (n.note_text || '').trim();
+    if (!t) continue;
+    const prev = noteByDay.get(n.day_id);
+    noteByDay.set(n.day_id, prev ? `${prev}\n${t}` : t);
+  }
+
+  // 4) váha zapsaná přímo v daný den
+  const { data: weights } = await supabase
+    .from('weight_entries')
+    .select('user_id, date, weight')
+    .in('user_id', ids)
+    .in('date', dates);
+  const weightByKey = new Map((weights || []).map((w) => [keyOf(w.user_id, w.date), w.weight]));
+
+  // 5) goal_history (kcal) pro historizovaný cíl daného dne
+  const { data: gh } = await supabase
+    .from('goal_history')
+    .select('user_id, date, goal_kcal')
+    .in('user_id', ids)
+    .order('date', { ascending: true });
+  const histByUser = new Map();
+  for (const r of gh || []) {
+    if (!histByUser.has(r.user_id)) histByUser.set(r.user_id, []);
+    histByUser.get(r.user_id).push({ date: r.date, goal_kcal: r.goal_kcal });
+  }
+
+  const rows = [];
+  for (const date of dates) {
+    for (const client of clientObjs) {
+      const k = keyOf(client.id, date);
+      const dId = dayIdByKey.get(k) ?? null;
+      const hasEntries = dId != null && hasEntryByDay.has(dId);
+      const kcalTotal = dId != null ? Math.round(kcalByDay.get(dId) || 0) : 0;
+      const goalKcal =
+        getGoalForDate(date, histByUser.get(client.id) || [], client.goal_kcal ?? 2000, 'goal_kcal') ?? 2000;
+      const pct = hasEntries && goalKcal > 0 ? Math.round((kcalTotal / goalKcal) * 100) : null;
+      // Stejná pravidla jako kruh v DailySummary: >110 % červená, 90–110 % zelená, jinak oranžová.
+      const color = pct == null ? 'none' : pct > 110 ? 'red' : pct >= 90 ? 'green' : 'orange';
+      rows.push({
+        key: k,
+        name: client.display_name || client.email || 'Bez jména',
+        date,
+        hasEntries,
+        kcalTotal,
+        goalKcal,
+        pct,
+        color,
+        weight: weightByKey.has(k) ? weightByKey.get(k) : null,
+        note: dId != null ? noteByDay.get(dId) || null : null,
+      });
+    }
+  }
+  return rows;
+}
 
 function toDateStr(d) {
   const y = d.getFullYear();
@@ -54,6 +154,7 @@ export default function TrainerDashboard({ onSelectClient }) {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
   const [bulkResult, setBulkResult] = useState(null);
+  const [bulkSummary, setBulkSummary] = useState(null); // pole řádků přehledu po dokončení
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedDates, setSelectedDates] = useState(new Set([getLast7Days()[1]])); // default: včera
   const [deleteTarget, setDeleteTarget] = useState(null); // client object pending delete
@@ -65,6 +166,7 @@ export default function TrainerDashboard({ onSelectClient }) {
   useEffect(() => {
     setSelectedIds(new Set());
     setBulkResult(null);
+    setBulkSummary(null);
   }, [activeTab]);
 
   async function archiveClient(client, e) {
@@ -221,6 +323,7 @@ export default function TrainerDashboard({ onSelectClient }) {
 
     setBulkLoading(true);
     setBulkResult(null);
+    setBulkSummary(null);
     setBulkProgress({ current: 0, total });
 
     let totalGenerated = 0;
@@ -252,6 +355,15 @@ export default function TrainerDashboard({ onSelectClient }) {
         generated: totalGenerated,
         skipped: totalSkipped,
       });
+
+      // Po dokončení sestav trenérský přehled okomentovaných klientek.
+      try {
+        const clientObjs = clients.filter((c) => selectedIds.has(c.id));
+        const summary = await buildBulkSummary(clientObjs, dates);
+        setBulkSummary(summary);
+      } catch (sumErr) {
+        console.error('Summary build error:', sumErr);
+      }
     } catch (err) {
       console.error('Bulk comment error:', err);
       setBulkResult({ error: 'Chyba při generování komentářů.' });
@@ -375,6 +487,64 @@ export default function TrainerDashboard({ onSelectClient }) {
             : `Vygenerováno ${bulkResult.generated} komentářů, přeskočeno ${bulkResult.skipped} jídel.`}
         </div>
       )}
+
+      {bulkSummary && bulkSummary.length > 0 && (() => {
+        const multiDate = new Set(bulkSummary.map((r) => r.date)).size > 1;
+        return (
+          <div className="trainer-summary">
+            <div className="trainer-summary-title">Přehled okomentovaných klientek</div>
+            <div className="trainer-summary-scroll">
+              <table className="trainer-summary-table">
+                <thead>
+                  <tr>
+                    <th>Klientka</th>
+                    {multiDate && <th>Den</th>}
+                    <th>Kalorie</th>
+                    <th>Váha</th>
+                    <th>Poznámka</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bulkSummary.map((r) => (
+                    <tr key={r.key}>
+                      <td className="summary-name">{r.name}</td>
+                      {multiDate && <td className="summary-date">{shortDate(r.date)}</td>}
+                      <td>
+                        {r.color === 'none' ? (
+                          <span className="summary-muted">bez zápisu</span>
+                        ) : (
+                          <span className="summary-kcal">
+                            <span
+                              className="summary-dot"
+                              style={{ background: KCAL_COLORS[r.color] }}
+                            />
+                            {r.kcalTotal} / {r.goalKcal} kcal
+                            <span className="summary-pct"> ({r.pct} %)</span>
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        {r.weight != null ? (
+                          <span className="summary-yes">✓ {r.weight} kg</span>
+                        ) : (
+                          <span className="summary-muted">—</span>
+                        )}
+                      </td>
+                      <td>
+                        {r.note ? (
+                          <span className="summary-yes summary-note" title={r.note}>✓</span>
+                        ) : (
+                          <span className="summary-muted">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
       {clients.length === 0 ? (
         <div className="trainer-empty">
           {isArchivedView ? 'Žádné bývalé klientky.' : 'Zatím žádné klientky.'}

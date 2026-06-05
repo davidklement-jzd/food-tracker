@@ -3203,6 +3203,76 @@ html, body {
   color: #c62828;
 }
 
+/* ===== BULK SUMMARY TABLE ===== */
+.trainer-summary {
+  margin-bottom: 16px;
+}
+.trainer-summary-title {
+  font-size: var(--text-13);
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 8px;
+}
+.trainer-summary-scroll {
+  overflow-x: auto;
+}
+.trainer-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-13);
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #eee;
+}
+.trainer-summary-table th,
+.trainer-summary-table td {
+  text-align: left;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+.trainer-summary-table thead th {
+  background: #f7f7f7;
+  color: #777;
+  font-weight: 600;
+  border-bottom: 1px solid #eee;
+}
+.trainer-summary-table tbody tr:not(:last-child) td {
+  border-bottom: 1px solid #f2f2f2;
+}
+.trainer-summary-table .summary-name {
+  font-weight: 600;
+  color: #333;
+}
+.trainer-summary-table .summary-date {
+  color: #777;
+}
+.summary-kcal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #333;
+}
+.summary-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+.summary-pct {
+  color: #999;
+}
+.summary-yes {
+  color: #2e7d32;
+  font-weight: 600;
+}
+.summary-note {
+  cursor: help;
+}
+.summary-muted {
+  color: #bbb;
+}
+
 /* ===== INVITE SYSTEM ===== */
 .trainer-header-actions {
   display: flex;

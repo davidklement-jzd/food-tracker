@@ -43,10 +43,26 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
   const [pendingEan, setPendingEan] = useState(null);
   const timerRef = useRef(null);
   const inputRef = useRef(null);
+  const amountInputRef = useRef(null);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Zaměří pole množství a označí celý obsah (modré), aby šlo hned přepsat.
+  function focusAmount() {
+    requestAnimationFrame(() => {
+      const el = amountInputRef.current;
+      if (!el) return;
+      el.focus();
+      el.select();
+    });
+  }
+
+  // Po výběru potraviny rovnou nachystej pole množství k psaní.
+  useEffect(() => {
+    if (selected) focusAmount();
+  }, [selected]);
 
   useEffect(() => {
     clearTimeout(timerRef.current);
@@ -763,12 +779,18 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
             <div className="modal-amount-label">Množství</div>
             <div className="modal-amount-row">
               <input
+                ref={amountInputRef}
                 type="number"
                 min="1"
                 value={amount.value}
                 onChange={(e) => setAmount((a) => ({ ...a, value: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAdd();
+                  }
+                }}
                 className="modal-amount-input"
-                autoFocus
               />
               <span className="modal-amount-x">×</span>
               <select
@@ -779,6 +801,7 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                     unit: newUnit,
                     value: newUnit === 'g' || newUnit === 'ml' ? String(Math.round(previewGrams)) : '1',
                   });
+                  focusAmount();
                 }}
                 className="modal-amount-unit"
               >
