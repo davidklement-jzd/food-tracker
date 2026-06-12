@@ -143,7 +143,7 @@ export default function FoodsDatabasePage({ onBack }) {
     setEditing(row);
   }
 
-  async function handleSaved(updatedRow, { propagated, isNew }) {
+  async function handleSaved(updatedRow, { isNew }) {
     if (isNew) {
       setRows((prev) => [updatedRow, ...prev]);
     } else {
@@ -311,37 +311,6 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
-  async function propagateToDiary(foodId, per100) {
-    // Najdi všechny diary_entries vázané na tuto potravinu a přepočítej.
-    const { data: entries, error } = await supabase
-      .from('diary_entries')
-      .select('id, grams')
-      .eq('food_id', foodId);
-    if (error) {
-      console.error('Propagate fetch error:', error);
-      return 0;
-    }
-    if (!entries || entries.length === 0) return 0;
-
-    let updated = 0;
-    for (const e of entries) {
-      const f = (Number(e.grams) || 0) / 100;
-      const { error: upErr } = await supabase
-        .from('diary_entries')
-        .update({
-          kcal: round1((per100.kcal || 0) * f),
-          protein: round1((per100.protein || 0) * f),
-          carbs: round1((per100.carbs || 0) * f),
-          fat: round1((per100.fat || 0) * f),
-          fiber: round1((per100.fiber || 0) * f),
-        })
-        .eq('id', e.id);
-      if (upErr) console.error('Propagate update error:', upErr);
-      else updated++;
-    }
-    return updated;
-  }
-
   async function save({ approve }) {
     setError(null);
 
@@ -441,12 +410,10 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
         return;
       }
 
-      let propagated = 0;
-      if (food.status === 'pending') {
-        propagated = await propagateToDiary(food.id, per100);
-      }
-
-      onSaved(updated, { propagated });
+      // Záměrně NEpropagujeme do diary_entries: každá položka v deníku si drží
+      // vlastní snapshot hodnot z okamžiku zápisu. Oprava suroviny se promítne
+      // jen do nově přidaných položek — původní zápis klientky zůstane zachovaný.
+      onSaved(updated, { propagated: 0 });
     } catch (e) {
       setError('Chyba: ' + (e?.message || e));
     } finally {
@@ -484,7 +451,7 @@ function FoodEditModal({ food, isTrainer, onClose, onSaved }) {
           <div className="modal-detail-brand" style={{ marginBottom: 8 }}>
             Hodnoty na <strong>100 {form.isLiquid ? 'ml' : 'g'}</strong>.
             {!isNew && wasPending && isTrainer && (
-              <> Změny se propíšou do jídelníčku autorky.</>
+              <> Původní zápis autorky zůstane beze změny — oprava platí jen pro nově přidané položky.</>
             )}
           </div>
           {food._scanInfo && (
