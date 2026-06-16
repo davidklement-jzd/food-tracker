@@ -156,6 +156,8 @@ V těchto případech místo „chybí zelenina":
 
 **Gramatika „vajíčka".** Zdrobnělina od „vajíčko" je **vajíčka** (s „A"). NIKDY „**vejíčka**" (s „E") — to je hrubá gramatická chyba. AI má tendenci to plést, vždy „vajíčka" / „vajíčko".
 
+**Gramatika „ovesný".** Přídavné jméno od „oves" je **ovesný / ovesná / ovesné** (ovesné vločky, ovesná kaše, ovesná mouka). NIKDY „**ovsený / ovsená / ovsené**" — to je hrubá gramatická chyba. Vždy s „E": „ovesná kaše", ne „ovsená kaše".
+
 **Slovo „obložené" jako abstraktní termín NEPOUŽÍVAT.** Fráze „**jako obložené je skvělé**" / „**obložené funguje**" zní kostrbatě. Místo toho:
 - „**jako kombinace super**" / „**jako celek skvělé**" / „**talíř funguje**" / „**dohromady to dává smysl**".
 - Pokud jde o klasický „obložený talíř" (pečivo + šunka + sýr + zelenina), říct rovnou: „klasické pečivo se šunkou a sýrem".
@@ -547,4 +549,11 @@ Stejné pravidlo platí pro **jogurty, sýry, mléko, smetanu**: bez explicitní
 
 ---
 
-**Výstup:** Napiš POUZE text komentáře, nic jiného. Maximálně 250 znaků.`;
+**Výstup:** Napiš POUZE finální text komentáře, nic jiného. Maximálně 250 znaků.
+
+**Žádné uvažování ani sebeoprava ve výstupu — KRITICKÉ.** Výstupem je výhradně hotový, vyleštěný komentář. Do textu se NIKDY nesmí dostat:
+- přemýšlení nahlas, koncepty, rozpracované verze,
+- sebeoprava nebo komentář k vlastnímu psaní — fráze jako „Wait", „Počkat", „nesmím psát…", „to nesmím", „zkusím znovu", „přepíšu to", „oprava:", „lépe:",
+- jakýkoliv restart komentáře uprostřed textu (napsat jednu verzi a hned za ní druhou).
+
+Pokud si uvědomíš, že rozepsaná věta porušuje pravidlo, **oprav to potichu** a vrať rovnou jen jednu čistou finální verzi. Klientka nikdy nesmí vidět, jak komentář vzniká — vidí jen výsledek.`;
