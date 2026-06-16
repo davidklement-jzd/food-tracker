@@ -66,6 +66,8 @@ Deno.serve(async (req) => {
 
     let generated = 0;
     let skipped = 0;
+    let failed = 0;
+    let firstError: { status: number; body: string } | null = null;
 
     for (const client of clients) {
       const { data: dayRow } = await admin
@@ -136,7 +138,7 @@ Deno.serve(async (req) => {
               "anthropic-version": "2023-06-01",
             },
             body: JSON.stringify({
-              model: "claude-sonnet-4-20250514",
+              model: "claude-sonnet-4-6",
               max_tokens: 150,
               system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
               messages: [{ role: "user", content: userPrompt }],
@@ -144,7 +146,10 @@ Deno.serve(async (req) => {
           });
 
           if (!response.ok) {
-            console.error("Anthropic API error:", response.status);
+            const errBody = await response.text().catch(() => "");
+            console.error("Anthropic API error:", response.status, errBody.slice(0, 300));
+            failed++;
+            if (!firstError) firstError = { status: response.status, body: errBody.slice(0, 300) };
             continue;
           }
 
@@ -170,7 +175,7 @@ Deno.serve(async (req) => {
               meal_id: mealId,
               prompt_tokens: aiResult.usage?.input_tokens,
               completion_tokens: aiResult.usage?.output_tokens,
-              model: "claude-sonnet-4-20250514",
+              model: "claude-sonnet-4-6",
               raw_response: JSON.stringify(aiResult),
             });
 
@@ -180,11 +185,23 @@ Deno.serve(async (req) => {
           }
         } catch (aiErr) {
           console.error(`AI error for client ${client.id} / ${mealId}:`, aiErr);
+          failed++;
+          if (!firstError) firstError = { status: 0, body: String(aiErr).slice(0, 300) };
         }
       }
     }
 
-    return jsonResponse({ generated, skipped }, 200, cors);
+    // Pokud se nic nevygenerovalo, nic nepřeskočilo, ale volání AI selhala,
+    // vrať to jako chybu — ať trenér nevidí zavádějící „0 komentářů".
+    if (generated === 0 && skipped === 0 && failed > 0) {
+      return jsonResponse(
+        { error: "AI generation failed", failed, detail: firstError },
+        502,
+        cors,
+      );
+    }
+
+    return jsonResponse({ generated, skipped, failed, detail: firstError }, 200, cors);
   } catch (err) {
     console.error("generate-all-comments error:", err);
     return jsonResponse({ error: "Internal server error" }, 500, cors);

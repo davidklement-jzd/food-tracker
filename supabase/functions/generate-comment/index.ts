@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 150,
         system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: userPrompt }],
@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
       meal_id,
       prompt_tokens: aiResult.usage?.input_tokens,
       completion_tokens: aiResult.usage?.output_tokens,
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       raw_response: JSON.stringify(aiResult),
     });
 
