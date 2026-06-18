@@ -108,6 +108,46 @@ export function safeNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+// Server-side pojistka: i když model i přes instrukce v promptu „přemýšlí
+// nahlas" nebo se uprostřed komentáře opraví, tohle to vyřízne, aby se to
+// NIKDY nedostalo ke klientce. Komentář se generuje bez thinkingu, takže
+// jakákoliv sebeoprava končí přímo v textu — tady ji odstraníme.
+//
+// Typický vzor úniku: "<koncept>. Wait — … Opravím. <opravená verze>".
+// Když najdeme jasný marker uvažování, vrátíme přednostně opravenou verzi
+// (text za závěrečným "Opravím." / "Zkusím znovu."), jinak ořízneme samotnou
+// meta-větu a vrátíme zbytek.
+export function stripAiReasoning(text: string): string {
+  let t = (text || "").trim();
+  if (!t) return t;
+
+  // Markery, které se v normálním českém komentáři NIKDY nevyskytují a značí,
+  // že model komentuje sám sebe / restartuje. ("přepíšu" / "udělám přepis"
+  // jsou legitimní u kalorií, proto je tu ZÁMĚRNĚ nemáme.)
+  const reasoningSignal =
+    /\b(wait|hmm+|oops|actually)\b|po[čc]k[aá]t[,!. ]|to nesm[íi]m|nesm[íi]m (psát|napsat)|zkus[íi]m (to )?znovu|opravuji|oprav[íi]m to\b|\bopravim\b|\bopravím\b|ne tady[.,]?\s*oprav|l[ée]pe:/i;
+
+  if (!reasoningSignal.test(t)) return t;
+
+  // 1) Zkus najít závěr opravy a vrátit text ZA ním (finální čistou verzi).
+  const redoEnd =
+    /(opravuji|oprav[íi]m(\s+to)?|zkus[íi]m\s+(to\s+)?znovu|p[íi][šs]u\s+znovu|l[ée]pe)\s*[.!:–—-]+\s*/gi;
+  let lastEnd = -1;
+  let m: RegExpExecArray | null;
+  while ((m = redoEnd.exec(t)) !== null) lastEnd = m.index + m[0].length;
+  if (lastEnd > 0 && lastEnd < t.length) {
+    const tail = t.slice(lastEnd).trim();
+    if (tail.length >= 15) return tail;
+  }
+
+  // 2) Fallback: vyřízni meta část od prvního markeru dál a vrať koncept před ním.
+  const cut = t.search(/\s*(\bwait\b|po[čc]k[aá]t[,. ]|to nesm[íi]m|nesm[íi]m\s+(psát|napsat))/i);
+  if (cut > 20) {
+    return t.slice(0, cut).replace(/[\s.,;:–—-]+$/, "").trim();
+  }
+  return t;
+}
+
 // Simple per-caller daily rate limit, using ai_comment_log as the counter.
 // Returns null if OK, or an error Response if the cap is hit.
 export async function enforceAiDailyLimit(

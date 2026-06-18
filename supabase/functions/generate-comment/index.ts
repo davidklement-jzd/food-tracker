@@ -9,6 +9,7 @@ import {
   requireTrainer,
   resolveGoalsForDate,
   safeNumber,
+  stripAiReasoning,
 } from "../_shared/http.ts";
 
 const DAILY_AI_LIMIT = Number(Deno.env.get("AI_DAILY_LIMIT") || "300");
@@ -118,7 +119,7 @@ Deno.serve(async (req) => {
     }
 
     const aiResult = await response.json();
-    const comment = aiResult.content?.[0]?.text?.slice(0, 250) || "";
+    const comment = stripAiReasoning(aiResult.content?.[0]?.text || "").slice(0, 250);
     if (!comment) {
       return jsonResponse({ error: "Empty AI response" }, 502, cors);
     }
