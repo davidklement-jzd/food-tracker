@@ -3744,3 +3744,76 @@ html, body {
   padding-top: 28px;
   border-top: 1px solid #eee;
 }
+
+/* Trenér: tlačítko poslat zprávu (odlišená barva od komentování) */
+.trainer-message-btn {
+  background: #2e7d32;
+}
+
+.trainer-message-btn:hover:not(:disabled) {
+  background: #27682b;
+}
+
+/* Klientka: vyskakovací okno se zprávou od trenéra */
+.announcement-modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.announcement-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.announcement-icon {
+  font-size: 26px;
+}
+
+.announcement-header h3 {
+  margin: 0;
+  color: #1976d2;
+  font-size: var(--text-18);
+}
+
+.announcement-text {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: var(--text-15);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.announcement-text + .announcement-text {
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+
+.announcement-ok-btn {
+  margin-top: 8px;
+  width: 100%;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #1976d2;
+  color: #fff;
+  font-size: var(--text-15);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.announcement-ok-btn:hover:not(:disabled) {
+  background: #1565c0;
+}
+
+.announcement-ok-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}

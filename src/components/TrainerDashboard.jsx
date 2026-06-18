@@ -155,6 +155,10 @@ export default function TrainerDashboard({ onSelectClient }) {
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
   const [bulkResult, setBulkResult] = useState(null);
   const [bulkSummary, setBulkSummary] = useState(null); // pole řádků přehledu po dokončení
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [messageText, setMessageText] = useState('');
+  const [messageSending, setMessageSending] = useState(false);
+  const [messageResult, setMessageResult] = useState(null); // { ok, count } | { error }
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedDates, setSelectedDates] = useState(new Set([getLast7Days()[1]])); // default: včera
   const [deleteTarget, setDeleteTarget] = useState(null); // client object pending delete
@@ -372,6 +376,47 @@ export default function TrainerDashboard({ onSelectClient }) {
     setBulkLoading(false);
   }
 
+  function openMessageModal() {
+    setMessageResult(null);
+    setShowMessageModal(true);
+  }
+
+  function closeMessageModal() {
+    setShowMessageModal(false);
+    setMessageResult(null);
+  }
+
+  async function sendMessage() {
+    const body = messageText.trim();
+    if (!body || selectedIds.size === 0) return;
+    setMessageSending(true);
+    setMessageResult(null);
+    try {
+      const { data: ann, error: annErr } = await supabase
+        .from('announcements')
+        .insert({ trainer_id: user.id, body })
+        .select('id')
+        .single();
+      if (annErr || !ann) throw annErr || new Error('insert failed');
+
+      const rows = [...selectedIds].map((uid) => ({
+        announcement_id: ann.id,
+        user_id: uid,
+      }));
+      const { error: recErr } = await supabase
+        .from('announcement_recipients')
+        .insert(rows);
+      if (recErr) throw recErr;
+
+      setMessageResult({ ok: true, count: rows.length });
+      setMessageText('');
+    } catch (err) {
+      console.error('Send message error:', err);
+      setMessageResult({ error: 'Zprávu se nepodařilo odeslat.' });
+    }
+    setMessageSending(false);
+  }
+
   if (loading) {
     return <div className="trainer-loading">Načítání klientek...</div>;
   }
@@ -474,6 +519,14 @@ export default function TrainerDashboard({ onSelectClient }) {
                 {bulkLoading
                   ? `⏳ Generuji komentáře... ${bulkProgress.current}/${bulkProgress.total}`
                   : `🤖 Okomentovat vybrané (${selectedIds.size} kl., ${selectedDates.size} ${selectedDates.size === 1 ? 'den' : 'dny'})`}
+              </button>
+            )}
+            {selectedIds.size > 0 && (
+              <button
+                className="trainer-bulk-btn trainer-message-btn"
+                onClick={openMessageModal}
+              >
+                ✉️ Poslat zprávu ({selectedIds.size} kl.)
               </button>
             )}
           </div>
@@ -686,6 +739,64 @@ export default function TrainerDashboard({ onSelectClient }) {
                   Zavřít
                 </button>
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showMessageModal && (
+        <div className="delete-modal-overlay" onClick={closeMessageModal}>
+          <div className="delete-modal invite-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>
+              Poslat zprávu ({selectedIds.size}{' '}
+              {selectedIds.size === 1 ? 'klientce' : 'klientkám'})
+            </h3>
+            {messageResult?.ok ? (
+              <div className="invite-result">
+                <p style={{ marginBottom: 12 }}>
+                  ✅ Odesláno {messageResult.count}{' '}
+                  {messageResult.count === 1 ? 'klientce' : 'klientkám'}. Zobrazí se jim
+                  při otevření aplikace.
+                </p>
+                <button
+                  className="trainer-bulk-btn trainer-bulk-btn-all"
+                  onClick={closeMessageModal}
+                  style={{ width: '100%' }}
+                >
+                  Zavřít
+                </button>
+              </div>
+            ) : (
+              <>
+                <textarea
+                  placeholder="Např.: Přes víkend budu pryč, komentáře doplním v pondělí. 🙂"
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  className="auth-input"
+                  rows={4}
+                  style={{ marginBottom: 12, width: '100%', resize: 'vertical' }}
+                />
+                {messageResult?.error && (
+                  <div className="delete-error">{messageResult.error}</div>
+                )}
+                <button
+                  className="trainer-bulk-btn trainer-bulk-btn-all"
+                  onClick={sendMessage}
+                  disabled={messageSending || !messageText.trim()}
+                  style={{ width: '100%' }}
+                >
+                  {messageSending
+                    ? 'Odesílám...'
+                    : `Odeslat ${selectedIds.size} ${selectedIds.size === 1 ? 'klientce' : 'klientkám'}`}
+                </button>
+                <button
+                  className="trainer-select-all-btn"
+                  onClick={closeMessageModal}
+                  style={{ width: '100%', marginTop: 8 }}
+                >
+                  Zrušit
+                </button>
+              </>
             )}
           </div>
         </div>

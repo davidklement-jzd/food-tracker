@@ -15,6 +15,7 @@ import WeightTracker from './components/WeightTracker';
 import ActivitySection from './components/ActivitySection';
 import ActivitySearchModal from './components/ActivitySearchModal';
 import CopyMealModal from './components/CopyMealModal';
+import AnnouncementPopup from './components/AnnouncementPopup';
 import { useActivityDiary } from './hooks/useActivityDiary';
 import { useTemplates } from './hooks/useTemplates';
 import { useGoalHistory } from './hooks/useGoalHistory';
@@ -200,6 +201,7 @@ export default function App() {
   // Client view (or trainer's own diary)
   return (
     <div className="app">
+      {!isTrainer && <AnnouncementPopup userId={user.id} />}
       <header className="app-header">
         <div className="logo">
           <img src="/icon-192.png" alt="Logo" className="logo-icon-img" />
