@@ -1,41 +1,57 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
-// Vyskakovací okno se zprávami od trenéra. Při otevření aplikace načte
-// nepřečtené zprávy klientky a zobrazí je. Tlačítkem „Rozumím" je klientka
-// odklikne (nastaví dismissed_at) a okno zmizí. Dokud neodklikne, naskočí
-// jí to při každém otevření.
+// Vyskakovací okno se zprávami od trenéra.
+// Zpráva se klientce zobrazí ve třech situacích:
+//  1) při otevření / restartu aplikace (počáteční načtení),
+//  2) živě, když má appku v popředí (realtime odběr),
+//  3) při návratu z pozadí na plochu zpět do appky (re-fetch na visibility),
+//     protože uspaný websocket mohl zprávu mezitím zmeškat.
+// Tlačítkem „Rozumím" je klientka odklikne (dismissed_at) a okno zmizí.
 export default function AnnouncementPopup({ userId }) {
-  const [items, setItems] = useState([]); // [{ announcement_id, body }]
+  const [items, setItems] = useState([]); // [{ announcement_id, body, created_at }]
   const [dismissing, setDismissing] = useState(false);
 
-  useEffect(() => {
+  const fetchUnread = useCallback(async () => {
     if (!userId) return;
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await supabase
-        .from('announcement_recipients')
-        .select('announcement_id, announcements(body, created_at)')
-        .eq('user_id', userId)
-        .is('dismissed_at', null);
-      if (cancelled || error || !data) return;
-      const rows = data
-        .map((r) => ({
-          announcement_id: r.announcement_id,
-          body: r.announcements?.body || '',
-          created_at: r.announcements?.created_at || '',
-        }))
-        .filter((x) => x.body)
-        .sort((a, b) => a.created_at.localeCompare(b.created_at));
-      setItems(rows);
-    })();
-    return () => {
-      cancelled = true;
-    };
+    const { data, error } = await supabase
+      .from('announcement_recipients')
+      .select('announcement_id, announcements(body, created_at)')
+      .eq('user_id', userId)
+      .is('dismissed_at', null);
+    if (error || !data) return;
+    const rows = data
+      .map((r) => ({
+        announcement_id: r.announcement_id,
+        body: r.announcements?.body || '',
+        created_at: r.announcements?.created_at || '',
+      }))
+      .filter((x) => x.body)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    setItems(rows);
   }, [userId]);
 
-  // Živý odběr: jakmile trenér odešle novou zprávu, naskočí klientce popup
-  // okamžitě – i když má appku jen na pozadí. RLS hlídá, že dostane jen své.
+  // 1) Načtení při otevření / restartu aplikace.
+  useEffect(() => {
+    fetchUnread();
+  }, [fetchUnread]);
+
+  // 3) Návrat z pozadí do popředí: websocket mohl mezitím vypadnout a zprávu
+  // zmeškat, takže při návratu do appky znovu dotáhneme nepřečtené.
+  useEffect(() => {
+    if (!userId) return;
+    const onForeground = () => {
+      if (document.visibilityState === 'visible') fetchUnread();
+    };
+    document.addEventListener('visibilitychange', onForeground);
+    window.addEventListener('focus', onForeground);
+    return () => {
+      document.removeEventListener('visibilitychange', onForeground);
+      window.removeEventListener('focus', onForeground);
+    };
+  }, [userId, fetchUnread]);
+
+  // 2) Živý odběr (appka v popředí): nová zpráva naskočí okamžitě.
   useEffect(() => {
     if (!userId) return;
     const channel = supabase
