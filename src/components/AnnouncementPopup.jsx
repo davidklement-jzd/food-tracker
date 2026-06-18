@@ -59,7 +59,7 @@ export default function AnnouncementPopup({ userId }) {
       <div className="announcement-modal" onClick={(e) => e.stopPropagation()}>
         <div className="announcement-header">
           <span className="announcement-icon">💬</span>
-          <h3>{items.length > 1 ? 'Zprávy od trenéra' : 'Zpráva od trenéra'}</h3>
+          <h3>{items.length > 1 ? 'Zprávy od Davida' : 'Zpráva od Davida'}</h3>
         </div>
         <div className="announcement-body">
           {items.map((x) => (

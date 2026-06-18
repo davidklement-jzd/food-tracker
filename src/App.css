@@ -3777,7 +3777,7 @@ html, body {
 
 .announcement-header h3 {
   margin: 0;
-  color: #1976d2;
+  color: #2e7d32;
   font-size: var(--text-18);
 }
 
@@ -3800,7 +3800,7 @@ html, body {
   padding: 10px 20px;
   border: none;
   border-radius: 8px;
-  background: #1976d2;
+  background: #2e7d32;
   color: #fff;
   font-size: var(--text-15);
   font-weight: 600;
@@ -3810,7 +3810,7 @@ html, body {
 }
 
 .announcement-ok-btn:hover:not(:disabled) {
-  background: #1565c0;
+  background: #27682b;
 }
 
 .announcement-ok-btn:disabled {
