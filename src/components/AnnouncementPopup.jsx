@@ -34,6 +34,44 @@ export default function AnnouncementPopup({ userId }) {
     };
   }, [userId]);
 
+  // Živý odběr: jakmile trenér odešle novou zprávu, naskočí klientce popup
+  // okamžitě – i když má appku jen na pozadí. RLS hlídá, že dostane jen své.
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`announcements_${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'announcement_recipients',
+          filter: `user_id=eq.${userId}`,
+        },
+        async (payload) => {
+          const annId = payload.new?.announcement_id;
+          if (!annId) return;
+          const { data, error } = await supabase
+            .from('announcements')
+            .select('body, created_at')
+            .eq('id', annId)
+            .single();
+          if (error || !data?.body) return;
+          setItems((prev) => {
+            if (prev.some((x) => x.announcement_id === annId)) return prev;
+            return [
+              ...prev,
+              { announcement_id: annId, body: data.body, created_at: data.created_at || '' },
+            ].sort((a, b) => a.created_at.localeCompare(b.created_at));
+          });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
+
   const dismissAll = useCallback(async () => {
     if (items.length === 0) return;
     setDismissing(true);
