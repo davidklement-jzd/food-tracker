@@ -560,6 +560,10 @@ html, body {
   font-weight: 600;
 }
 
+.meal-macros span {
+  white-space: nowrap;
+}
+
 .meal-actions {
   display: flex;
   gap: 6px;
@@ -2326,6 +2330,18 @@ html, body {
   .meal-entry {
     position: relative;
     padding-right: 36px;
+  }
+
+  .meal-header {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .meal-totals {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    gap: 12px;
   }
 
   .content {
