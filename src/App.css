@@ -540,9 +540,24 @@ html, body {
   flex: 1;
 }
 
+.meal-totals {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .meal-kcal {
   font-size: var(--text-13);
   color: #888;
+}
+
+.meal-macros {
+  display: flex;
+  gap: 8px;
+  font-size: var(--text-12);
+  font-weight: 600;
 }
 
 .meal-actions {

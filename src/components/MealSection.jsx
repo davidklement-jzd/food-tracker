@@ -6,7 +6,17 @@ function round(val) {
 }
 
 export default function MealSection({ meal, entries, onRemove, onToggleAdd, onCopyMeal, onSaveTemplate, note, onNoteChange, onUpdateEntry, trainerComment, ownerId }) {
-  const totalKcal = entries.reduce((s, e) => s + (e.kcal || 0), 0);
+  const totals = entries.reduce(
+    (acc, e) => ({
+      kcal: acc.kcal + (e.kcal || 0),
+      protein: acc.protein + (e.protein || 0),
+      carbs: acc.carbs + (e.carbs || 0),
+      fat: acc.fat + (e.fat || 0),
+      fiber: acc.fiber + (e.fiber || 0),
+    }),
+    { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
+  );
+  const totalKcal = totals.kcal;
   const [editingNote, setEditingNote] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
   const [editingEntryId, setEditingEntryId] = useState(null);
@@ -85,7 +95,15 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, onCo
       <div className="meal-header">
         <span className="meal-name">{meal.label}</span>
         {entries.length > 0 && (
-          <span className="meal-kcal">{Math.round(totalKcal)} kcal</span>
+          <span className="meal-totals">
+            <span className="meal-kcal">{Math.round(totalKcal)} kcal</span>
+            <span className="meal-macros">
+              <span className="macro-protein">{Math.round(totals.protein)}g B</span>
+              <span className="macro-carbs">{Math.round(totals.carbs)}g S</span>
+              <span className="macro-fat">{Math.round(totals.fat)}g T</span>
+              <span className="macro-fiber">{Math.round(totals.fiber)}g V</span>
+            </span>
+          </span>
         )}
         <div className="meal-actions">
           <button
