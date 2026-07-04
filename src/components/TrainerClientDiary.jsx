@@ -4,6 +4,7 @@ import { useGoalHistory } from '../hooks/useGoalHistory';
 import { useActivityDiary } from '../hooks/useActivityDiary';
 import { useTemplates } from '../hooks/useTemplates';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import DailySummary from './DailySummary';
 import MealSection from './MealSection';
 import FoodSearchModal from './FoodSearchModal';
@@ -52,6 +53,10 @@ export default function TrainerClientDiary({ client, onBack }) {
   const [clientProfile, setClientProfile] = useState(client);
   const [copyMealModal, setCopyMealModal] = useState(null);
   const [saveTemplateData, setSaveTemplateData] = useState(null);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [messageText, setMessageText] = useState('');
+  const [messageSending, setMessageSending] = useState(false);
+  const [messageResult, setMessageResult] = useState(null); // { ok } | { error }
   const { user } = useAuth();
   const { templates, saveTemplate, deleteTemplate } = useTemplates(user?.id);
 
@@ -104,6 +109,43 @@ export default function TrainerClientDiary({ client, onBack }) {
     }
     setBulkLoading(false);
   }, [dayData, comments, generateAiComment, clientProfile]);
+
+  function openMessageModal() {
+    setMessageResult(null);
+    setShowMessageModal(true);
+  }
+
+  function closeMessageModal() {
+    setShowMessageModal(false);
+    setMessageResult(null);
+  }
+
+  async function sendMessage() {
+    const body = messageText.trim();
+    if (!body) return;
+    setMessageSending(true);
+    setMessageResult(null);
+    try {
+      const { data: ann, error: annErr } = await supabase
+        .from('announcements')
+        .insert({ trainer_id: user.id, body })
+        .select('id')
+        .single();
+      if (annErr || !ann) throw annErr || new Error('insert failed');
+
+      const { error: recErr } = await supabase
+        .from('announcement_recipients')
+        .insert({ announcement_id: ann.id, user_id: clientProfile.id });
+      if (recErr) throw recErr;
+
+      setMessageResult({ ok: true });
+      setMessageText('');
+    } catch (err) {
+      console.error('Send message error:', err);
+      setMessageResult({ error: 'Zprávu se nepodařilo odeslat.' });
+    }
+    setMessageSending(false);
+  }
 
   const modalMealObj = MEALS.find((m) => m.id === modalMeal);
 
@@ -170,16 +212,24 @@ export default function TrainerClientDiary({ client, onBack }) {
         </button>
       </div>
 
-      {!loading && getAllEntries().length > 0 && (
+      {!loading && (
         <div className="trainer-bulk-actions">
+          {getAllEntries().length > 0 && (
+            <button
+              className="trainer-bulk-btn"
+              onClick={commentWholeDay}
+              disabled={bulkLoading}
+            >
+              {bulkLoading
+                ? `⏳ Generuji komentáře... ${bulkProgress.current}/${bulkProgress.total}`
+                : '🤖 Okomentovat celý den'}
+            </button>
+          )}
           <button
-            className="trainer-bulk-btn"
-            onClick={commentWholeDay}
-            disabled={bulkLoading}
+            className="trainer-bulk-btn trainer-message-btn"
+            onClick={openMessageModal}
           >
-            {bulkLoading
-              ? `⏳ Generuji komentáře... ${bulkProgress.current}/${bulkProgress.total}`
-              : '🤖 Okomentovat celý den'}
+            ✉️ Poslat zprávu
           </button>
         </div>
       )}
@@ -309,6 +359,59 @@ export default function TrainerClientDiary({ client, onBack }) {
             >
               Uložit šablonu
             </button>
+          </div>
+        </div>
+      )}
+
+      {showMessageModal && (
+        <div className="delete-modal-overlay" onClick={closeMessageModal}>
+          <div className="delete-modal invite-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>
+              Poslat zprávu — {clientProfile.display_name || clientProfile.email}
+            </h3>
+            {messageResult?.ok ? (
+              <div className="invite-result">
+                <p style={{ marginBottom: 12 }}>
+                  ✅ Odesláno. Zobrazí se jí při otevření aplikace.
+                </p>
+                <button
+                  className="trainer-bulk-btn trainer-bulk-btn-all"
+                  onClick={closeMessageModal}
+                  style={{ width: '100%' }}
+                >
+                  Zavřít
+                </button>
+              </div>
+            ) : (
+              <>
+                <textarea
+                  placeholder="Např.: Přes víkend budu pryč, komentáře doplním v pondělí. 🙂"
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  className="auth-input"
+                  rows={4}
+                  style={{ marginBottom: 12, width: '100%', resize: 'vertical' }}
+                />
+                {messageResult?.error && (
+                  <div className="delete-error">{messageResult.error}</div>
+                )}
+                <button
+                  className="trainer-bulk-btn trainer-bulk-btn-all"
+                  onClick={sendMessage}
+                  disabled={messageSending || !messageText.trim()}
+                  style={{ width: '100%' }}
+                >
+                  {messageSending ? 'Odesílám...' : 'Odeslat zprávu'}
+                </button>
+                <button
+                  className="trainer-select-all-btn"
+                  onClick={closeMessageModal}
+                  style={{ width: '100%', marginTop: 8 }}
+                >
+                  Zrušit
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

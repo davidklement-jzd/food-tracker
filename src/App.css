@@ -3173,6 +3173,7 @@ html, body {
 .trainer-bulk-actions {
   display: flex;
   justify-content: center;
+  gap: 8px;
   padding: 4px 0;
   margin: -4px 0 4px;
 }
