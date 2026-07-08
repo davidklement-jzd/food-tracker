@@ -114,7 +114,7 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
     setAmount({ value: '', unit: 'g' });
   }
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!selected) return;
     const n = selected.nutriments || {};
     const gramsTotal = getComputedGrams();
@@ -139,7 +139,7 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
       displayAmount = `${Math.round(gramsTotal)}${u}`;
     }
 
-    onAdd({
+    const res = await onAdd({
       id: Date.now() + Math.random(),
       name: selected.product_name || 'Neznámé jídlo',
       brand: selected.brands || '',
@@ -154,6 +154,10 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
       unit: u,
       portions: portions && portions.length > 0 ? portions : null,
     });
+    if (res?.error) {
+      alert('Přidání jídla selhalo: ' + (res.error.message || 'zkuste to znovu'));
+      return;
+    }
     onClose();
   }
 
@@ -396,7 +400,7 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
 
       // Rovnou zapiš do dnešního jídelníčku jako 100 g (resp. 100 ml) porce.
       const unit = isLiquid ? 'ml' : 'g';
-      onAdd({
+      const addRes = await onAdd({
         id: Date.now() + Math.random(),
         name: inserted.title,
         brand: '',
@@ -411,6 +415,10 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
         unit,
         portions: finalPortions,
       });
+      if (addRes?.error) {
+        setCreateError('Potravina uložena, ale přidání do jídelníčku selhalo: ' + (addRes.error.message || 'zkuste to znovu'));
+        return;
+      }
       onClose();
     } catch (e) {
       console.error(e);

@@ -182,7 +182,7 @@ export function useSupabaseDiary(userId, selectedDate) {
 
   const addEntry = useCallback(async (mealId, entry) => {
     const id = await ensureDayId();
-    if (!id) return;
+    if (!id) return { error: { message: 'Nepodařilo se založit záznam dne.' } };
 
     const currentEntries = dayData[mealId] || [];
 
@@ -211,7 +211,7 @@ export function useSupabaseDiary(userId, selectedDate) {
 
     if (error) {
       console.error('Error adding entry:', error);
-      return;
+      return { error };
     }
 
     const newEntry = {
@@ -234,6 +234,7 @@ export function useSupabaseDiary(userId, selectedDate) {
       ...prev,
       [mealId]: [...(prev[mealId] || []), newEntry],
     }));
+    return { error: null };
   }, [ensureDayId, dayData]);
 
   const removeEntry = useCallback(async (mealId, entryId) => {

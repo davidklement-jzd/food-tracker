@@ -238,7 +238,7 @@ export function useClientDiary(clientId, selectedDate) {
 
   const addEntry = useCallback(async (mealId, entry) => {
     const id = await ensureDayId();
-    if (!id) return;
+    if (!id) return { error: { message: 'Nepodařilo se založit záznam dne.' } };
     const currentEntries = dayData[mealId] || [];
     const { data: { user: currentUser } } = await supabase.auth.getUser();
     const { data, error } = await supabase
@@ -255,21 +255,24 @@ export function useClientDiary(clientId, selectedDate) {
         unit: entry.unit || 'g',
       })
       .select().single();
-    if (!error && data) {
-      setDayData((prev) => ({
-        ...prev,
-        [mealId]: [...(prev[mealId] || []), {
-          id: data.id, name: data.name, brand: data.brand,
-          grams: data.grams, displayAmount: data.display_amount,
-          kcal: data.kcal, protein: data.protein, carbs: data.carbs,
-          fat: data.fat, fiber: data.fiber,
-          unit: data.unit || entry.unit || 'g',
-          food_id: data.food_id || null,
-          portions: entry.portions || null,
-          created_by: data.created_by,
-        }],
-      }));
+    if (error) {
+      console.error('Error adding entry (trainer):', error);
+      return { error };
     }
+    setDayData((prev) => ({
+      ...prev,
+      [mealId]: [...(prev[mealId] || []), {
+        id: data.id, name: data.name, brand: data.brand,
+        grams: data.grams, displayAmount: data.display_amount,
+        kcal: data.kcal, protein: data.protein, carbs: data.carbs,
+        fat: data.fat, fiber: data.fiber,
+        unit: data.unit || entry.unit || 'g',
+        food_id: data.food_id || null,
+        portions: entry.portions || null,
+        created_by: data.created_by,
+      }],
+    }));
+    return { error: null };
   }, [ensureDayId, dayData]);
 
   const removeEntry = useCallback(async (mealId, entryId) => {
