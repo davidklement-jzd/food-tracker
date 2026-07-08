@@ -4,12 +4,12 @@ import {
   buildDayContextPrompt,
   corsHeadersFor,
   enforceAiDailyLimit,
+  generateAndSaveComment,
   isUuid,
   jsonResponse,
   requireTrainer,
   resolveGoalsForDate,
   safeNumber,
-  stripAiReasoning,
 } from "../_shared/http.ts";
 
 const DAILY_AI_LIMIT = Number(Deno.env.get("AI_DAILY_LIMIT") || "300");
@@ -101,68 +101,29 @@ Deno.serve(async (req) => {
       currentMealId: meal_id,
     });
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 150,
-        system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-        messages: [{ role: "user", content: userPrompt }],
-      }),
+    const result = await generateAndSaveComment({
+      admin,
+      anthropicKey,
+      dayId: day_id,
+      mealId: meal_id,
+      systemPrompt: SYSTEM_PROMPT,
+      userPrompt,
     });
 
-    if (!response.ok) {
-      console.error("Anthropic API error:", response.status);
-      return jsonResponse({ error: "AI service unavailable" }, 502, cors);
+    if (!result.comment) {
+      console.error("AI generation failed:", result.errorKind, result.errorDetail);
+      return jsonResponse(
+        { error: "AI generation failed", kind: result.errorKind, detail: result.errorDetail },
+        502,
+        cors,
+      );
     }
-
-    const aiResult = await response.json();
-    const comment = stripAiReasoning(aiResult.content?.[0]?.text || "").slice(0, 250);
-    if (!comment) {
-      return jsonResponse({ error: "Empty AI response" }, 502, cors);
-    }
-
-    const { data: commentData, error: dbError } = await admin
-      .from("trainer_comments")
-      .upsert(
-        {
-          day_id,
-          meal_id,
-          comment_text: comment,
-          author: "ai",
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "day_id,meal_id" },
-      )
-      .select()
-      .single();
-
-    if (dbError) {
-      console.error("DB error saving comment:", dbError.message);
-    }
-
-    await admin.from("ai_comment_log").insert({
-      day_id,
-      meal_id,
-      prompt_tokens: aiResult.usage?.input_tokens,
-      completion_tokens: aiResult.usage?.output_tokens,
-      model: "claude-sonnet-4-6",
-      raw_response: JSON.stringify(aiResult),
-    });
 
     return jsonResponse(
       {
-        comment,
-        id: commentData?.id,
-        tokens: {
-          input: aiResult.usage?.input_tokens,
-          output: aiResult.usage?.output_tokens,
-        },
+        comment: result.comment,
+        id: result.commentId,
+        tokens: { input: result.usage?.input, output: result.usage?.output },
       },
       200,
       cors,

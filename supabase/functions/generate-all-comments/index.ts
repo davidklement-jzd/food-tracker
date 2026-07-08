@@ -4,11 +4,11 @@ import {
   COMMENTABLE_MEAL_ORDER,
   corsHeadersFor,
   enforceAiDailyLimit,
+  generateAndSaveComment,
   jsonResponse,
   requireTrainer,
   resolveGoalsForDate,
   safeNumber,
-  stripAiReasoning,
 } from "../_shared/http.ts";
 
 const DAILY_AI_LIMIT = Number(Deno.env.get("AI_DAILY_LIMIT") || "300");
@@ -136,64 +136,23 @@ Deno.serve(async (req) => {
           currentMealId: mealId,
         });
 
-        try {
-          const response = await fetch("https://api.anthropic.com/v1/messages", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-api-key": anthropicKey,
-              "anthropic-version": "2023-06-01",
-            },
-            body: JSON.stringify({
-              model: "claude-sonnet-4-6",
-              max_tokens: 150,
-              system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-              messages: [{ role: "user", content: userPrompt }],
-            }),
-          });
+        const result = await generateAndSaveComment({
+          admin,
+          anthropicKey,
+          dayId: dayRow.id,
+          mealId,
+          systemPrompt: SYSTEM_PROMPT,
+          userPrompt,
+        });
 
-          if (!response.ok) {
-            const errBody = await response.text().catch(() => "");
-            console.error("Anthropic API error:", response.status, errBody.slice(0, 300));
-            failed++;
-            if (!firstError) firstError = { status: response.status, body: errBody.slice(0, 300) };
-            continue;
-          }
-
-          const aiResult = await response.json();
-          const comment = stripAiReasoning(aiResult.content?.[0]?.text || "").slice(0, 250);
-
-          if (comment) {
-            await admin
-              .from("trainer_comments")
-              .upsert(
-                {
-                  day_id: dayRow.id,
-                  meal_id: mealId,
-                  comment_text: comment,
-                  author: "ai",
-                  updated_at: new Date().toISOString(),
-                },
-                { onConflict: "day_id,meal_id" },
-              );
-
-            await admin.from("ai_comment_log").insert({
-              day_id: dayRow.id,
-              meal_id: mealId,
-              prompt_tokens: aiResult.usage?.input_tokens,
-              completion_tokens: aiResult.usage?.output_tokens,
-              model: "claude-sonnet-4-6",
-              raw_response: JSON.stringify(aiResult),
-            });
-
-            // Add to running context so the next meal's prompt sees it
-            commentsMap[mealId] = comment;
-            generated++;
-          }
-        } catch (aiErr) {
-          console.error(`AI error for client ${client.id} / ${mealId}:`, aiErr);
+        if (result.comment) {
+          // Add to running context so the next meal's prompt sees it
+          commentsMap[mealId] = result.comment;
+          generated++;
+        } else {
+          console.error(`AI error for client ${client.id} / ${mealId}:`, result.errorKind, result.errorDetail);
           failed++;
-          if (!firstError) firstError = { status: 0, body: String(aiErr).slice(0, 300) };
+          if (!firstError) firstError = { status: 0, body: `${result.errorKind}: ${result.errorDetail ?? ""}`.slice(0, 300) };
         }
       }
     }
