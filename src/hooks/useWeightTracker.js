@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { todayStr } from '../utils/dates';
 
 export function useWeightTracker(userId, selectedDate) {
   const [weightForDate, setWeightForDate] = useState(null);
@@ -38,7 +39,7 @@ export function useWeightTracker(userId, selectedDate) {
 
   async function saveWeight(weight) {
     if (!userId) return;
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayStr();
     const { error } = await supabase
       .from('weight_entries')
       .upsert(

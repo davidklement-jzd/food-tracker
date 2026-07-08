@@ -13,6 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useWeightTracker } from '../hooks/useWeightTracker';
 import { useCalorieHistory } from '../hooks/useCalorieHistory';
 import { useGoalHistory, getGoalForDate } from '../hooks/useGoalHistory';
+import { todayStr } from '../utils/dates';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Filler, Tooltip);
 
@@ -34,7 +35,7 @@ export default function AnalysisPage({ onBack, targetUserId, targetProfile }) {
   const { user, profile: ownProfile } = useAuth();
   const userId = targetUserId || user?.id;
   const profile = targetProfile || ownProfile;
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayStr();
   const { history, loading: weightLoading } = useWeightTracker(userId, today);
   const { calorieHistory, calorieLoading } = useCalorieHistory(userId);
   const { goalHistory } = useGoalHistory(userId);

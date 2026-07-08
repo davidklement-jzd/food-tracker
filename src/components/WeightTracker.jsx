@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useWeightTracker } from '../hooks/useWeightTracker';
+import { todayStr } from '../utils/dates';
 
 export default function WeightTracker({ userId, profile, selectedDate }) {
   const { weightForDate, loading, saveWeight } = useWeightTracker(userId, selectedDate);
@@ -9,7 +10,7 @@ export default function WeightTracker({ userId, profile, selectedDate }) {
   const inputRef = useRef(null);
 
   const displayWeight = weightForDate?.weight ?? profile?.initial_weight ?? null;
-  const isToday = selectedDate === new Date().toISOString().split('T')[0];
+  const isToday = selectedDate === todayStr();
 
   useEffect(() => {
     if (editing && inputRef.current) {

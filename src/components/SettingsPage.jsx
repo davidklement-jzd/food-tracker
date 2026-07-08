@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { logGoalChange } from '../lib/goalHistoryWriter';
+import { todayStr } from '../utils/dates';
 
 const GOAL_FIELDS = [
   { key: 'goal_kcal', label: 'Kalorický cíl', unit: 'kcal', default: 2000 },
@@ -94,7 +95,7 @@ export default function SettingsPage({ onBack, targetUserId, targetProfile, onPr
     if (!error && wasInitialWeightEmpty && newInitialWeight != null) {
       const userId = isEditingOther ? targetUserId : ownProfile?.id;
       if (userId) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = todayStr();
         await supabase.from('weight_entries').upsert(
           { user_id: userId, weight: newInitialWeight, date: today },
           { onConflict: 'user_id,date' }

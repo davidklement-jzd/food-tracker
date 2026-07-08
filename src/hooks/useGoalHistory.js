@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { todayStr } from '../utils/dates';
 
 const GOAL_KEYS = ['goal_kcal', 'goal_protein', 'goal_carbs', 'goal_fat', 'goal_fiber'];
 
@@ -36,7 +37,7 @@ export function useGoalHistory(userId) {
 }
 
 function isoToday() {
-  return new Date().toISOString().split('T')[0];
+  return todayStr();
 }
 
 // Vrátí cíl pro daný den a klíč.

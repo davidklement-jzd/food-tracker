@@ -1,4 +1,5 @@
 import { useGoalHistory, getAllGoalsForDate } from '../hooks/useGoalHistory';
+import { todayStr } from '../utils/dates';
 
 const DEFAULT_GOALS = { goal_kcal: 2000, goal_protein: 100, goal_carbs: 220, goal_fat: 80, goal_fiber: 30 };
 
@@ -9,7 +10,7 @@ export default function DailySummary({ entries, profile, selectedDate, goalHisto
   const ownHook = useGoalHistory(goalHistoryProp ? null : profile?.id);
   const goalHistory = goalHistoryProp ?? ownHook.goalHistory;
   const fallback = { ...DEFAULT_GOALS, ...(profile || {}) };
-  const dateStr = selectedDate || new Date().toISOString().split('T')[0];
+  const dateStr = selectedDate || todayStr();
   const goals = getAllGoalsForDate(dateStr, goalHistory, fallback);
   const GOAL_KCAL = goals.goal_kcal;
   const GOALS = { protein: goals.goal_protein, carbs: goals.goal_carbs, fat: goals.goal_fat, fiber: goals.goal_fiber };

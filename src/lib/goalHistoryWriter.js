@@ -25,6 +25,7 @@
 // úpravou ve skutečnosti efektivně platila (= oldProfileSnapshot).
 
 import { supabase } from './supabase';
+import { todayStr } from '../utils/dates';
 
 const GOAL_KEYS = ['goal_kcal', 'goal_protein', 'goal_carbs', 'goal_fat', 'goal_fiber'];
 
@@ -37,7 +38,7 @@ function pickGoals(obj) {
 }
 
 function isoToday() {
-  return new Date().toISOString().split('T')[0];
+  return todayStr();
 }
 
 function addDays(isoDate, days) {
