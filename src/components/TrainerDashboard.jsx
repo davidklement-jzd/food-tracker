@@ -74,6 +74,44 @@ async function buildBulkSummary(clientObjs, dates) {
     histByUser.get(r.user_id).push({ date: r.date, goal_kcal: r.goal_kcal });
   }
 
+  // 6) Neaktivita (jako dnešek): kolik dní zpět je poslední zápis jídla / váhy.
+  //    Čistě z DB (žádný Claude, žádné kredity). Koukáme max 14 dní zpět —
+  //    starší nebo žádný záznam = sentinel 15 → v UI "14+".
+  const today = toDateStr(new Date());
+  const cutoff = dateNDaysAgoStr(14);
+  const [recentDaysRes, recentWeightsRes] = await Promise.all([
+    supabase.from('diary_days').select('id, user_id, date')
+      .in('user_id', ids).gte('date', cutoff).lte('date', today),
+    supabase.from('weight_entries').select('user_id, date')
+      .in('user_id', ids).gte('date', cutoff).lte('date', today),
+  ]);
+  const recentDayRows = recentDaysRes.data || [];
+  const recentDayIds = recentDayRows.map((d) => d.id);
+  const recentEntriesRes = recentDayIds.length
+    ? await supabase.from('diary_entries').select('day_id').in('day_id', recentDayIds)
+    : { data: [] };
+  const dayIdsWithEntries = new Set((recentEntriesRes.data || []).map((e) => e.day_id));
+
+  const lastFoodByUser = new Map();
+  for (const d of recentDayRows) {
+    if (!dayIdsWithEntries.has(d.id)) continue; // prázdný den se nepočítá jako zápis
+    const prev = lastFoodByUser.get(d.user_id);
+    if (!prev || d.date > prev) lastFoodByUser.set(d.user_id, d.date);
+  }
+  const lastWeightByUser = new Map();
+  for (const w of recentWeightsRes.data || []) {
+    const prev = lastWeightByUser.get(w.user_id);
+    if (!prev || w.date > prev) lastWeightByUser.set(w.user_id, w.date);
+  }
+  const foodDaysAgoByUser = new Map();
+  const weightDaysAgoByUser = new Map();
+  for (const id of ids) {
+    const lf = lastFoodByUser.get(id);
+    foodDaysAgoByUser.set(id, lf ? daysBetweenStr(lf, today) : 15);
+    const lw = lastWeightByUser.get(id);
+    weightDaysAgoByUser.set(id, lw ? daysBetweenStr(lw, today) : 15);
+  }
+
   const rows = [];
   for (const date of dates) {
     for (const client of clientObjs) {
@@ -97,6 +135,8 @@ async function buildBulkSummary(clientObjs, dates) {
         color,
         weight: weightByKey.has(k) ? weightByKey.get(k) : null,
         note: dId != null ? noteByDay.get(dId) || null : null,
+        foodDaysAgo: foodDaysAgoByUser.get(client.id) ?? 15,
+        weightDaysAgo: weightDaysAgoByUser.get(client.id) ?? 15,
       });
     }
   }
@@ -108,6 +148,31 @@ function toDateStr(d) {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+function daysBetweenStr(fromStr, toStr) {
+  const [fy, fm, fd] = fromStr.split('-').map(Number);
+  const [ty, tm, td] = toStr.split('-').map(Number);
+  return Math.round((new Date(ty, tm - 1, td) - new Date(fy, fm - 1, fd)) / 86400000);
+}
+
+function dateNDaysAgoStr(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return toDateStr(d);
+}
+
+// Popisek neaktivity: null pod 2 dny (jeden vynechaný den neřešíme),
+// "2".."14" jinak, "14+" nad 14 dní. Sentinel 15 = déle / nikdy v okně.
+function inactivityLabel(daysAgo) {
+  if (daysAgo == null || daysAgo < 2) return null;
+  return daysAgo > 14 ? '14+' : String(daysAgo);
+}
+
+function dayWord(label) {
+  if (label === '14+') return 'dní';
+  const n = Number(label);
+  return n >= 2 && n <= 4 ? 'dny' : 'dní';
 }
 
 function getLast7Days() {
@@ -558,13 +623,23 @@ export default function TrainerDashboard({ onSelectClient }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {bulkSummary.map((r) => (
+                  {bulkSummary.map((r) => {
+                    const foodLbl = inactivityLabel(r.foodDaysAgo);
+                    const weightLbl = inactivityLabel(r.weightDaysAgo);
+                    return (
                     <tr key={r.key}>
                       <td className="summary-name">{r.name}</td>
                       {multiDate && <td className="summary-date">{shortDate(r.date)}</td>}
                       <td>
                         {r.color === 'none' ? (
-                          <span className="summary-muted">bez zápisu</span>
+                          <span className="summary-muted">
+                            bez zápisu
+                            {foodLbl && (
+                              <span style={{ color: '#e8730c', fontWeight: 600 }}>
+                                {' · '}{foodLbl} {dayWord(foodLbl)} v řadě
+                              </span>
+                            )}
+                          </span>
                         ) : (
                           <span className="summary-kcal">
                             <span
@@ -579,6 +654,10 @@ export default function TrainerDashboard({ onSelectClient }) {
                       <td>
                         {r.weight != null ? (
                           <span className="summary-yes">✓ {r.weight} kg</span>
+                        ) : weightLbl ? (
+                          <span style={{ color: '#e8730c', fontWeight: 600 }}>
+                            {weightLbl} {dayWord(weightLbl)} bez váhy
+                          </span>
                         ) : (
                           <span className="summary-muted">—</span>
                         )}
@@ -591,7 +670,8 @@ export default function TrainerDashboard({ onSelectClient }) {
                         )}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
