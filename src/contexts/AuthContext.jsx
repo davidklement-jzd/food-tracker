@@ -8,6 +8,9 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  // true, když uživatel přišel přes odkaz z resetu hesla — App v tom případě
+  // místo aplikace ukáže formulář pro nastavení nového hesla.
+  const [recoveryMode, setRecoveryMode] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -17,7 +20,8 @@ export function AuthProvider({ children }) {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        if (event === 'PASSWORD_RECOVERY') setRecoveryMode(true);
         setSession(session);
         if (session) fetchProfile(session.user.id);
         else {
@@ -65,6 +69,23 @@ export function AuthProvider({ children }) {
     return { data, error };
   }
 
+  // Pošle klientce e-mail s odkazem na reset hesla. Odkaz míří zpět na tuto
+  // aplikaci (redirectTo = aktuální origin), kde ji recovery session přepne
+  // do režimu nastavení nového hesla.
+  async function resetPasswordForEmail(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    return { error };
+  }
+
+  // Nastaví nové heslo přihlášenému uživateli (typicky v recovery režimu).
+  async function updatePassword(password) {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (!error) setRecoveryMode(false);
+    return { error };
+  }
+
   async function updateProfile(updates, oldProfileSnapshot) {
     if (!session?.user?.id) return { error: { message: 'Nejste přihlášen/a' } };
     // Pokud volající nepředal snapshot starého profilu, použij aktuální stav.
@@ -94,10 +115,13 @@ export function AuthProvider({ children }) {
     user: session?.user ?? null,
     profile,
     loading,
+    recoveryMode,
     signUp,
     signIn,
     signOut,
     updateProfile,
+    resetPasswordForEmail,
+    updatePassword,
     isTrainer: profile?.role === 'trainer',
   };
 

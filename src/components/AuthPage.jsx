@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function AuthPage() {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, resetPasswordForEmail } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
+  const [isForgot, setIsForgot] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -40,6 +41,22 @@ export default function AuthPage() {
     setError('');
     setSuccess('');
     setLoading(true);
+
+    if (isForgot) {
+      if (!email.trim()) {
+        setError('Vyplňte email.');
+        setLoading(false);
+        return;
+      }
+      const { error } = await resetPasswordForEmail(email.trim());
+      if (error) {
+        setError(error.message);
+      } else {
+        setSuccess('Poslali jsme vám email s odkazem pro nastavení nového hesla. Zkontrolujte i složku spam.');
+      }
+      setLoading(false);
+      return;
+    }
 
     if (isRegister) {
       if (!displayName.trim()) {
@@ -78,10 +95,15 @@ export default function AuthPage() {
         <img src="/icon-192.png" alt="Logo" style={{ width: 160, height: 160, marginBottom: 0, display: 'block', marginLeft: 'auto', marginRight: 'auto', transform: 'translateX(-10px)' }} />
         <h1 className="auth-title">Jak na zdravé tělo</h1>
         <p className="auth-subtitle">
-          {isRegister ? 'Vytvořit účet' : 'Přihlášení'}
+          {isForgot ? 'Reset hesla' : isRegister ? 'Vytvořit účet' : 'Přihlášení'}
         </p>
 
         <form onSubmit={handleSubmit} className="auth-form">
+          {isForgot && (
+            <p style={{ fontSize: 13, color: '#888', margin: '0 0 4px', textAlign: 'center' }}>
+              Zadejte email, kterým se přihlašujete. Pošleme vám odkaz pro nastavení nového hesla.
+            </p>
+          )}
           {isRegister && (
             <>
               <input
@@ -111,16 +133,18 @@ export default function AuthPage() {
             autoComplete="email"
             required
           />
-          <input
-            type="password"
-            placeholder="Heslo"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="auth-input"
-            autoComplete={isRegister ? 'new-password' : 'current-password'}
-            minLength={6}
-            required
-          />
+          {!isForgot && (
+            <input
+              type="password"
+              placeholder="Heslo"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="auth-input"
+              autoComplete={isRegister ? 'new-password' : 'current-password'}
+              minLength={6}
+              required
+            />
+          )}
 
           {error && <div className="auth-error">{error}</div>}
           {success && <div className="auth-success">{success}</div>}
@@ -128,23 +152,44 @@ export default function AuthPage() {
           <button type="submit" className="auth-btn" disabled={loading}>
             {loading
               ? '...'
-              : isRegister
-                ? 'Zaregistrovat se'
-                : 'Přihlásit se'}
+              : isForgot
+                ? 'Poslat odkaz pro reset'
+                : isRegister
+                  ? 'Zaregistrovat se'
+                  : 'Přihlásit se'}
           </button>
         </form>
+
+        {!isRegister && !isForgot && (
+          <button
+            className="auth-toggle"
+            onClick={() => {
+              setIsForgot(true);
+              setError('');
+              setSuccess('');
+            }}
+          >
+            Zapomněli jste heslo?
+          </button>
+        )}
 
         <button
           className="auth-toggle"
           onClick={() => {
-            setIsRegister(!isRegister);
+            if (isForgot) {
+              setIsForgot(false);
+            } else {
+              setIsRegister(!isRegister);
+            }
             setError('');
             setSuccess('');
           }}
         >
-          {isRegister
-            ? 'Už máte účet? Přihlásit se'
-            : 'Nemáte účet? Zaregistrovat se'}
+          {isForgot
+            ? 'Zpět na přihlášení'
+            : isRegister
+              ? 'Už máte účet? Přihlásit se'
+              : 'Nemáte účet? Zaregistrovat se'}
         </button>
       </div>
     </div>

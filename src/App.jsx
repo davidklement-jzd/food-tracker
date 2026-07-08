@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { useSupabaseDiary } from './hooks/useSupabaseDiary';
 import AuthPage from './components/AuthPage';
+import ResetPasswordPage from './components/ResetPasswordPage';
 import SearchBar from './components/SearchBar';
 import DailySummary from './components/DailySummary';
 import MealSection from './components/MealSection';
@@ -49,7 +50,7 @@ function formatDate(dateStr) {
 }
 
 export default function App() {
-  const { user, profile, loading: authLoading, signOut, isTrainer } = useAuth();
+  const { user, profile, loading: authLoading, signOut, isTrainer, recoveryMode } = useAuth();
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [modalMeal, setModalMeal] = useState(null);
   const [trainerView, setTrainerView] = useState('dashboard'); // 'dashboard' | 'client'
@@ -103,6 +104,12 @@ export default function App() {
         <p>Načítání...</p>
       </div>
     );
+  }
+
+  // Uživatel přišel přes odkaz z resetovacího e-mailu — má aktivní recovery
+  // session, ale místo aplikace mu ukážeme formulář pro nové heslo.
+  if (recoveryMode) {
+    return <ResetPasswordPage />;
   }
 
   if (!user) {
