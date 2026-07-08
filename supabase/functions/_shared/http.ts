@@ -228,6 +228,9 @@ export interface BuildDayContextInput {
   clientName: string;
   goalKcal: number;
   goalProtein: number;
+  goalCarbs: number;
+  goalFat: number;
+  goalFiber: number;
   entries: DayEntry[];
   // meal_id -> comment text of previously written comments for this day
   comments: Record<string, string>;
@@ -238,7 +241,7 @@ export interface BuildDayContextInput {
 // with full-day context and previously written comments so the AI doesn't
 // repeat itself and can reference earlier meals.
 export function buildDayContextPrompt(input: BuildDayContextInput): string {
-  const { clientName, goalKcal, goalProtein, entries, comments, currentMealId } = input;
+  const { clientName, goalKcal, goalProtein, goalCarbs, goalFat, goalFiber, entries, comments, currentMealId } = input;
 
   const byMeal: Record<string, DayEntry[]> = {};
   for (const e of entries) {
@@ -253,20 +256,39 @@ export function buildDayContextPrompt(input: BuildDayContextInput): string {
       protein: acc.protein + safeNumber(e.protein),
       carbs: acc.carbs + safeNumber(e.carbs),
       fat: acc.fat + safeNumber(e.fat),
+      fiber: acc.fiber + safeNumber(e.fiber),
     }),
-    { kcal: 0, protein: 0, carbs: 0, fat: 0 },
+    { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
   );
 
-  const kcalPct = goalKcal > 0 ? Math.round((totals.kcal / goalKcal) * 100) : 0;
-  const proteinPct = goalProtein > 0 ? Math.round((totals.protein / goalProtein) * 100) : 0;
+  const pctOf = (value: number, goal: number) =>
+    goal > 0 ? Math.round((value / goal) * 100) : 0;
+  // Stejné prahy jako barevná kolečka v UI (DailySummary / MacroRow):
+  // 90–110 % = zelené, pod 90 % = oranžové, nad 110 % = červené. Model tak
+  // vidí přesně to, co má trenér před očima. Procento ukazuje směr (pod/přes),
+  // takže „červené" u 136 % je jasně překročení, ne nedostatek.
+  const ringColor = (pct: number) =>
+    pct > 110 ? "červené" : pct >= 90 ? "zelené" : "oranžové";
+  const kcalPct = pctOf(totals.kcal, goalKcal);
+  const proteinPct = pctOf(totals.protein, goalProtein);
+  const carbsPct = pctOf(totals.carbs, goalCarbs);
+  const fatPct = pctOf(totals.fat, goalFat);
+  const fiberPct = pctOf(totals.fiber, goalFiber);
 
   const safeClient = sanitizePromptField(clientName, 60) || "klientka";
 
   const sections: string[] = [];
   sections.push(`Klientka: ${safeClient}`);
-  sections.push(`Denní cíle: ${goalKcal} kcal, ${goalProtein}g bílkovin`);
   sections.push(
-    `Denní příjem celkem: ${Math.round(totals.kcal)} kcal (${kcalPct}%), ${Math.round(totals.protein)}g B (${proteinPct}%), ${Math.round(totals.carbs)}g S, ${Math.round(totals.fat)}g T`,
+    `Denní cíle: ${goalKcal} kcal, ${goalProtein}g B, ${goalCarbs}g S, ${goalFat}g T, ${goalFiber}g vlákniny`,
+  );
+  sections.push(
+    `Denní příjem celkem (% denního cíle a barva kolečka jako v appce):\n` +
+      `  - Kalorie: ${Math.round(totals.kcal)} kcal (${kcalPct}% – ${ringColor(kcalPct)})\n` +
+      `  - Bílkoviny: ${Math.round(totals.protein)}g (${proteinPct}% – ${ringColor(proteinPct)})\n` +
+      `  - Sacharidy: ${Math.round(totals.carbs)}g (${carbsPct}% – ${ringColor(carbsPct)})\n` +
+      `  - Tuky: ${Math.round(totals.fat)}g (${fatPct}% – ${ringColor(fatPct)})\n` +
+      `  - Vláknina: ${Math.round(totals.fiber)}g (${fiberPct}% – ${ringColor(fiberPct)})`,
   );
   sections.push("");
   sections.push("Přehled celého dne:");

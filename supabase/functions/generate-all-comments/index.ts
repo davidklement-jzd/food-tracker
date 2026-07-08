@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
     let clientsQuery = admin
       .from("profiles")
-      .select("id, display_name, email, goal_kcal, goal_protein")
+      .select("id, display_name, email, goal_kcal, goal_protein, goal_carbs, goal_fat, goal_fiber")
       .eq("role", "client");
 
     if (Array.isArray(client_ids) && client_ids.length > 0) {
@@ -106,6 +106,9 @@ Deno.serve(async (req) => {
       const historyGoals = await resolveGoalsForDate(admin, client.id, date);
       const dayGoalKcal = safeNumber(historyGoals.goal_kcal ?? client.goal_kcal, 2000);
       const dayGoalProtein = safeNumber(historyGoals.goal_protein ?? client.goal_protein, 100);
+      const dayGoalCarbs = safeNumber(historyGoals.goal_carbs ?? client.goal_carbs, 220);
+      const dayGoalFat = safeNumber(historyGoals.goal_fat ?? client.goal_fat, 80);
+      const dayGoalFiber = safeNumber(historyGoals.goal_fiber ?? client.goal_fiber, 30);
 
       // Which meals in this day have entries?
       const mealsWithEntries = new Set(entries.map((e) => e.meal_id));
@@ -125,6 +128,9 @@ Deno.serve(async (req) => {
           clientName: client.display_name || "",
           goalKcal: dayGoalKcal,
           goalProtein: dayGoalProtein,
+          goalCarbs: dayGoalCarbs,
+          goalFat: dayGoalFat,
+          goalFiber: dayGoalFiber,
           entries,
           comments: commentsMap,
           currentMealId: mealId,
