@@ -251,6 +251,8 @@ export function useClientDiary(clientId, selectedDate) {
         fat: entry.fat, fiber: entry.fiber || 0,
         sort_order: currentEntries.length,
         created_by: currentUser?.id || null,
+        food_id: entry.food_id || null,
+        unit: entry.unit || 'g',
       })
       .select().single();
     if (!error && data) {
@@ -261,6 +263,9 @@ export function useClientDiary(clientId, selectedDate) {
           grams: data.grams, displayAmount: data.display_amount,
           kcal: data.kcal, protein: data.protein, carbs: data.carbs,
           fat: data.fat, fiber: data.fiber,
+          unit: data.unit || entry.unit || 'g',
+          food_id: data.food_id || null,
+          portions: entry.portions || null,
           created_by: data.created_by,
         }],
       }));
