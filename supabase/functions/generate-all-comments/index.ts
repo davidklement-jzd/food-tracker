@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
 
       if (!dayRow) continue;
 
-      const [entriesRes, commentsRes] = await Promise.all([
+      const [entriesRes, commentsRes, notesRes] = await Promise.all([
         admin
           .from("diary_entries")
           .select("meal_id, name, grams, kcal, protein, carbs, fat, fiber")
@@ -90,10 +90,20 @@ Deno.serve(async (req) => {
           .from("trainer_comments")
           .select("meal_id, comment_text")
           .eq("day_id", dayRow.id),
+        admin
+          .from("meal_notes")
+          .select("meal_id, note_text")
+          .eq("day_id", dayRow.id),
       ]);
 
       const entries = entriesRes.data || [];
       if (entries.length === 0) continue;
+
+      // meal_id -> poznámka klientky (kontext ke způsobu přípravy)
+      const notesMap: Record<string, string> = {};
+      for (const n of notesRes.data || []) {
+        if (n.note_text) notesMap[n.meal_id] = n.note_text;
+      }
 
       // Running map of comments (pre-existing + generated in this run).
       // Each subsequent meal sees all earlier comments as context.
@@ -134,6 +144,7 @@ Deno.serve(async (req) => {
           entries,
           comments: commentsMap,
           currentMealId: mealId,
+          currentMealNote: notesMap[mealId] || "",
         });
 
         const result = await generateAndSaveComment({

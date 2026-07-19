@@ -246,13 +246,16 @@ export interface BuildDayContextInput {
   // meal_id -> comment text of previously written comments for this day
   comments: Record<string, string>;
   currentMealId: string;
+  // Textová poznámka klientky ke KOMENTOVANÉMU jídlu (může obsahovat způsob
+  // přípravy – olej/tuk/troubu/vodu). Volitelné, prázdné když poznámka není.
+  currentMealNote?: string;
 }
 
 // Builds the user prompt for generating a comment about a specific meal,
 // with full-day context and previously written comments so the AI doesn't
 // repeat itself and can reference earlier meals.
 export function buildDayContextPrompt(input: BuildDayContextInput): string {
-  const { clientName, goalKcal, goalProtein, goalCarbs, goalFat, goalFiber, entries, comments, currentMealId } = input;
+  const { clientName, goalKcal, goalProtein, goalCarbs, goalFat, goalFiber, entries, comments, currentMealId, currentMealNote } = input;
 
   const byMeal: Record<string, DayEntry[]> = {};
   for (const e of entries) {
@@ -340,6 +343,14 @@ export function buildDayContextPrompt(input: BuildDayContextInput): string {
         const name = sanitizePromptField(e.name, 80);
         sections.push(
           `  - ${name}: ${safeNumber(e.grams)}g, ${safeNumber(e.kcal)} kcal, ${safeNumber(e.protein)}g B, ${safeNumber(e.carbs)}g S, ${safeNumber(e.fat)}g T, ${safeNumber(e.fiber)}g V`,
+        );
+      }
+      // Poznámka klientky k tomuto jídlu – kontext ke ZPŮSOBU PŘÍPRAVY
+      // (olej/tuk/troubu/vodu), NE položka jídla ke komentování.
+      const note = sanitizePromptField(currentMealNote, 300);
+      if (note) {
+        sections.push(
+          `  [Poznámka klientky k tomuto jídlu – ber ji jen jako kontext ke způsobu přípravy (olej/tuk/úprava), nekomentuj ji jako jídlo]: "${note}"`,
         );
       }
     } else {

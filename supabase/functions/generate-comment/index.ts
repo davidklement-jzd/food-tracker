@@ -53,8 +53,10 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Invalid or non-commentable meal_id" }, 400, cors);
     }
 
-    // Fetch authoritative day state from DB (all entries + existing comments)
-    const [dayRes, entriesRes, commentsRes] = await Promise.all([
+    // Fetch authoritative day state from DB (all entries + existing comments).
+    // Poznámku klientky tahám JEN pro komentované jídlo (kontext k přípravě –
+    // olej/tuk/způsob úpravy), ať prompt nezbytní o poznámky celého dne.
+    const [dayRes, entriesRes, commentsRes, noteRes] = await Promise.all([
       admin.from("diary_days").select("id, user_id, date").eq("id", day_id).single(),
       admin
         .from("diary_entries")
@@ -65,6 +67,12 @@ Deno.serve(async (req) => {
         .from("trainer_comments")
         .select("meal_id, comment_text")
         .eq("day_id", day_id),
+      admin
+        .from("meal_notes")
+        .select("note_text")
+        .eq("day_id", day_id)
+        .eq("meal_id", meal_id)
+        .maybeSingle(),
     ]);
 
     if (dayRes.error || !dayRes.data) {
@@ -99,6 +107,7 @@ Deno.serve(async (req) => {
       entries,
       comments: commentsMap,
       currentMealId: meal_id,
+      currentMealNote: typeof noteRes.data?.note_text === "string" ? noteRes.data.note_text : "",
     });
 
     const result = await generateAndSaveComment({
