@@ -5,6 +5,7 @@ import AuthPage from './components/AuthPage';
 import ResetPasswordPage from './components/ResetPasswordPage';
 import SearchBar from './components/SearchBar';
 import DailySummary from './components/DailySummary';
+import StreakBadge from './components/StreakBadge';
 import MealSection from './components/MealSection';
 import FoodSearchModal from './components/FoodSearchModal';
 import TrainerDashboard from './components/TrainerDashboard';
@@ -20,6 +21,7 @@ import AnnouncementPopup from './components/AnnouncementPopup';
 import { useActivityDiary } from './hooks/useActivityDiary';
 import { useTemplates } from './hooks/useTemplates';
 import { useGoalHistory } from './hooks/useGoalHistory';
+import { useStreak } from './hooks/useStreak';
 import './App.css';
 
 const MEALS = [
@@ -96,6 +98,15 @@ export default function App() {
   // při změně dne — jinak by DailySummary při remountu krátce blikla
   // hodnotou z fallback profilu.
   const { goalHistory } = useGoalHistory(user?.id);
+
+  // Série zapisování (jen klientka). Přepočítá se, když se změní počet dnešních
+  // záznamů, aby medaile hned reagovala na zapsání/smazání dnešního jídla.
+  const todayEntrySignal =
+    selectedDate === todayStr() ? getAllEntries().length : -1;
+  const { streak: logStreak, loggedToday } = useStreak(
+    isTrainer ? null : user?.id,
+    todayEntrySignal
+  );
 
   if (authLoading) {
     return (
@@ -323,6 +334,7 @@ export default function App() {
             </div>
 
             <div className="sidebar">
+              {!isTrainer && <StreakBadge streak={logStreak} loggedToday={loggedToday} />}
               <DailySummary entries={getAllEntries()} profile={profile} selectedDate={selectedDate} goalHistory={goalHistory} />
               <WeightTracker userId={user.id} profile={profile} selectedDate={selectedDate} />
             </div>

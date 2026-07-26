@@ -6,6 +6,8 @@ import { useTemplates } from '../hooks/useTemplates';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import DailySummary from './DailySummary';
+import StreakBadge from './StreakBadge';
+import { useStreak } from '../hooks/useStreak';
 import MealSection from './MealSection';
 import FoodSearchModal from './FoodSearchModal';
 import CopyMealModal from './CopyMealModal';
@@ -83,6 +85,16 @@ export default function TrainerClientDiary({ client, onBack }) {
   // diary view (loading state) při změně dne — jinak by DailySummary
   // při remountu krátce blikla hodnotou z fallback profilu.
   const { goalHistory } = useGoalHistory(clientProfile.id);
+
+  // Série zapisování klientky (přepočítá se při změně počtu dnešních záznamů).
+  const todayEntrySignal =
+    selectedDate === todayStr()
+      ? MEALS.flatMap((m) => dayData[m.id] || []).length
+      : -1;
+  const { streak: logStreak, loggedToday } = useStreak(
+    clientProfile.id,
+    todayEntrySignal
+  );
 
   function changeDate(offset) {
     const [y, m, d] = selectedDate.split('-').map(Number);
@@ -286,6 +298,7 @@ export default function TrainerClientDiary({ client, onBack }) {
             </div>
 
             <div className="sidebar">
+              <StreakBadge streak={logStreak} loggedToday={loggedToday} />
               <DailySummary entries={getAllEntries()} profile={clientProfile} selectedDate={selectedDate} goalHistory={goalHistory} />
               <WeightTracker userId={clientProfile.id} profile={clientProfile} selectedDate={selectedDate} />
             </div>

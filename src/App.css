@@ -3849,3 +3849,49 @@ html, body {
   opacity: 0.7;
   cursor: not-allowed;
 }
+
+/* Série zapisování – medaile */
+.streak-badge {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+.streak-badge--inactive {
+  background: #fafafa;
+}
+
+.streak-medal {
+  width: 60px;
+  height: 75px;
+  flex-shrink: 0;
+}
+
+.streak-num {
+  font-size: 26px;
+  font-weight: 800;
+  font-family: inherit;
+}
+
+.streak-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.streak-count {
+  font-size: 17px;
+  font-weight: 700;
+  color: #333;
+}
+
+.streak-caption {
+  font-size: 13px;
+  color: #888;
+  line-height: 1.35;
+}
