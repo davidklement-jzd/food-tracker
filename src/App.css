@@ -3850,6 +3850,137 @@ html, body {
   cursor: not-allowed;
 }
 
+/* Týdenní přehled – modal */
+.weekly-summary-card {
+  background: #fff;
+  border-radius: 12px;
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.weekly-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  position: sticky;
+  top: 0;
+  background: #fff;
+}
+
+.weekly-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2c2c2c;
+}
+
+.weekly-range {
+  font-size: 13px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.weekly-close {
+  border: none;
+  background: transparent;
+  font-size: 26px;
+  line-height: 1;
+  color: #aaa;
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 6px;
+}
+
+.weekly-close:hover {
+  background: #f2f2f2;
+  color: #666;
+}
+
+.weekly-section {
+  padding: 14px 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.weekly-section--last {
+  border-bottom: none;
+}
+
+.weekly-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #aaa;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.weekly-line {
+  font-size: 15px;
+  color: #333;
+}
+
+.weekly-subline {
+  font-size: 13px;
+  color: #888;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+.weekly-muted {
+  color: #666;
+  font-size: 14px;
+}
+
+.weekly-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.weekly-macro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  padding: 4px 0;
+}
+
+.weekly-macro-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #444;
+}
+
+.weekly-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.weekly-goalchange {
+  margin: 12px 20px;
+  padding: 10px 12px;
+  background: #f5f7fa;
+  border: 1px solid #e3e8ee;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #5a6b7b;
+}
+
+.weekly-note {
+  padding: 30px 20px;
+  text-align: center;
+  color: #888;
+  font-size: 14px;
+}
+
 /* Připomenutí zapsat váhu – banner */
 .weight-reminder-banner {
   max-width: 1100px;

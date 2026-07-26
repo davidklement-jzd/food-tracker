@@ -7,6 +7,7 @@ import SearchBar from './components/SearchBar';
 import DailySummary from './components/DailySummary';
 import StreakBadge from './components/StreakBadge';
 import WeightReminderBanner from './components/WeightReminderBanner';
+import WeeklySummary from './components/WeeklySummary';
 import MealSection from './components/MealSection';
 import FoodSearchModal from './components/FoodSearchModal';
 import TrainerDashboard from './components/TrainerDashboard';
@@ -24,6 +25,8 @@ import { useTemplates } from './hooks/useTemplates';
 import { useGoalHistory } from './hooks/useGoalHistory';
 import { useStreak } from './hooks/useStreak';
 import { useWeightReminder } from './hooks/useWeightReminder';
+import { useWeeklySummary } from './hooks/useWeeklySummary';
+import { previousWeek } from './utils/week';
 import './App.css';
 
 const MEALS = [
@@ -117,6 +120,39 @@ export default function App() {
     isTrainer ? null : user?.id,
     weightSignal
   );
+
+  // Týdenní přehled (jen klientka): poslední uzavřený týden po–ne.
+  const prevWeek = previousWeek(todayStr());
+  const weeklySummary = useWeeklySummary(
+    isTrainer ? null : user?.id,
+    prevWeek,
+    profile,
+    goalHistory
+  );
+  const [weeklyOpen, setWeeklyOpen] = useState(false);
+
+  // Popup při prvním otevření nového týdne (localStorage si pamatuje týden).
+  // Prázdný týden se neukazuje.
+  useEffect(() => {
+    if (isTrainer || !user?.id) return;
+    if (weeklySummary.loading || weeklySummary.empty) return;
+    const key = `weeklySeen:${user.id}:${prevWeek.start}`;
+    try {
+      if (localStorage.getItem(key) === '1') return;
+    } catch {
+      return;
+    }
+    setWeeklyOpen(true);
+  }, [isTrainer, user?.id, weeklySummary.loading, weeklySummary.empty, prevWeek.start]);
+
+  function closeWeekly() {
+    setWeeklyOpen(false);
+    try {
+      localStorage.setItem(`weeklySeen:${user.id}:${prevWeek.start}`, '1');
+    } catch {
+      // localStorage nedostupný – jen zavřeme
+    }
+  }
 
   if (authLoading) {
     return (
@@ -230,6 +266,11 @@ export default function App() {
   return (
     <div className="app">
       {!isTrainer && <AnnouncementPopup userId={user.id} />}
+      {!isTrainer && weeklyOpen && (
+        <div className="modal-overlay" onClick={closeWeekly}>
+          <WeeklySummary summary={weeklySummary} onClose={closeWeekly} />
+        </div>
+      )}
       <header className="app-header">
         <div className="logo">
           <img src="/icon-192.png" alt="Logo" className="logo-icon-img" />
@@ -258,6 +299,11 @@ export default function App() {
           <button className="header-action-btn" onClick={() => setCurrentView('foods-db')}>
             Databáze surovin
           </button>
+          {!isTrainer && (
+            <button className="header-action-btn" onClick={() => setWeeklyOpen(true)}>
+              Týdenní přehled
+            </button>
+          )}
           <button className="header-action-btn" onClick={() => setCurrentView('analysis')}>
             Analýza
           </button>

@@ -7,7 +7,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import DailySummary from './DailySummary';
 import StreakBadge from './StreakBadge';
+import WeeklySummary from './WeeklySummary';
 import { useStreak } from '../hooks/useStreak';
+import { useWeeklySummary } from '../hooks/useWeeklySummary';
+import { previousWeek } from '../utils/week';
 import MealSection from './MealSection';
 import FoodSearchModal from './FoodSearchModal';
 import CopyMealModal from './CopyMealModal';
@@ -95,6 +98,11 @@ export default function TrainerClientDiary({ client, onBack }) {
     clientProfile.id,
     todayEntrySignal
   );
+
+  // Týdenní přehled klientky – na vyžádání (bez popupu), poslední uzavřený týden.
+  const prevWeek = previousWeek(todayStr());
+  const weeklySummary = useWeeklySummary(clientProfile.id, prevWeek, clientProfile, goalHistory);
+  const [weeklyOpen, setWeeklyOpen] = useState(false);
 
   function changeDate(offset) {
     const [y, m, d] = selectedDate.split('-').map(Number);
@@ -198,6 +206,9 @@ export default function TrainerClientDiary({ client, onBack }) {
           {clientProfile.display_name || clientProfile.email}
         </div>
         <div className="trainer-client-actions">
+          <button className="header-action-btn" onClick={() => setWeeklyOpen(true)}>
+            Týdenní přehled
+          </button>
           <button className="header-action-btn" onClick={() => setClientView('analysis')}>
             Analýza
           </button>
@@ -206,6 +217,12 @@ export default function TrainerClientDiary({ client, onBack }) {
           </button>
         </div>
       </div>
+
+      {weeklyOpen && (
+        <div className="modal-overlay" onClick={() => setWeeklyOpen(false)}>
+          <WeeklySummary summary={weeklySummary} onClose={() => setWeeklyOpen(false)} />
+        </div>
+      )}
 
       <div className="date-nav">
         <button onClick={() => changeDate(-1)} className="date-btn">
