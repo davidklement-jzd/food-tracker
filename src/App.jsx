@@ -6,6 +6,7 @@ import ResetPasswordPage from './components/ResetPasswordPage';
 import SearchBar from './components/SearchBar';
 import DailySummary from './components/DailySummary';
 import StreakBadge from './components/StreakBadge';
+import WeightReminderBanner from './components/WeightReminderBanner';
 import MealSection from './components/MealSection';
 import FoodSearchModal from './components/FoodSearchModal';
 import TrainerDashboard from './components/TrainerDashboard';
@@ -22,6 +23,7 @@ import { useActivityDiary } from './hooks/useActivityDiary';
 import { useTemplates } from './hooks/useTemplates';
 import { useGoalHistory } from './hooks/useGoalHistory';
 import { useStreak } from './hooks/useStreak';
+import { useWeightReminder } from './hooks/useWeightReminder';
 import './App.css';
 
 const MEALS = [
@@ -106,6 +108,14 @@ export default function App() {
   const { streak: logStreak, loggedToday } = useStreak(
     isTrainer ? null : user?.id,
     todayEntrySignal
+  );
+
+  // Připomenutí zapsat váhu (jen klientka). weightSignal se zvýší po zapsání
+  // váhy, aby banner hned zmizel bez reloadu.
+  const [weightSignal, setWeightSignal] = useState(0);
+  const { overdue: weightOverdue, days: weightDaysMissed } = useWeightReminder(
+    isTrainer ? null : user?.id,
+    weightSignal
   );
 
   if (authLoading) {
@@ -277,6 +287,9 @@ export default function App() {
         <FoodsDatabasePage onBack={() => setCurrentView('diary')} />
       ) : (
       <>
+      {!isTrainer && weightOverdue && (
+        <WeightReminderBanner userId={user.id} days={weightDaysMissed} />
+      )}
       <div className="main-layout">
         <main className="content">
           <div className="date-nav">
@@ -336,7 +349,7 @@ export default function App() {
             <div className="sidebar">
               {!isTrainer && <StreakBadge streak={logStreak} loggedToday={loggedToday} />}
               <DailySummary entries={getAllEntries()} profile={profile} selectedDate={selectedDate} goalHistory={goalHistory} />
-              <WeightTracker userId={user.id} profile={profile} selectedDate={selectedDate} />
+              <WeightTracker userId={user.id} profile={profile} selectedDate={selectedDate} onSaved={() => setWeightSignal((s) => s + 1)} />
             </div>
           </div>
         </main>

@@ -3850,6 +3850,49 @@ html, body {
   cursor: not-allowed;
 }
 
+/* Připomenutí zapsat váhu – banner */
+.weight-reminder-banner {
+  max-width: 1100px;
+  margin: 16px auto 0;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 10px;
+  color: #7a5b00;
+}
+
+.weight-reminder-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.weight-reminder-text {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.weight-reminder-dismiss {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: #b08900;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 6px;
+}
+
+.weight-reminder-dismiss:hover {
+  background: #ffecb3;
+  color: #7a5b00;
+}
+
 /* Série zapisování – medaile */
 .streak-badge {
   display: flex;

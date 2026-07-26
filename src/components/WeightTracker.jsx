@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useWeightTracker } from '../hooks/useWeightTracker';
 import { todayStr } from '../utils/dates';
 
-export default function WeightTracker({ userId, profile, selectedDate }) {
+export default function WeightTracker({ userId, profile, selectedDate, onSaved }) {
   const { weightForDate, loading, saveWeight } = useWeightTracker(userId, selectedDate);
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -29,9 +29,10 @@ export default function WeightTracker({ userId, profile, selectedDate }) {
     const val = parseFloat(inputValue);
     if (isNaN(val) || val <= 0) return;
     setSaving(true);
-    await saveWeight(val);
+    const res = await saveWeight(val);
     setSaving(false);
     setEditing(false);
+    if (!res?.error && onSaved) onSaved();
   }
 
   function handleKeyDown(e) {
