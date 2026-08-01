@@ -1238,6 +1238,27 @@ html, body {
   color: #999;
 }
 
+/* Liquids indicator — jen spočítané číslo, bez cíle */
+.liquids-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 14px;
+  border-top: 1px solid #eee;
+}
+
+.liquids-label {
+  font-size: var(--text-14);
+  font-weight: 600;
+  color: #555;
+}
+
+.liquids-val {
+  font-size: var(--text-14);
+  font-weight: 700;
+  color: #2196f3;
+}
+
 /* ===== FOOD SEARCH MODAL ===== */
 .modal-overlay {
   position: fixed;

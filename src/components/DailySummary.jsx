@@ -21,8 +21,9 @@ export default function DailySummary({ entries, profile, selectedDate, goalHisto
       carbs: acc.carbs + (e.carbs || 0),
       fat: acc.fat + (e.fat || 0),
       fiber: acc.fiber + (e.fiber || 0),
+      ml: acc.ml + (e.unit === 'ml' ? (e.grams || 0) : 0),
     }),
-    { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
+    { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, ml: 0 }
   );
 
   const rawPct = Math.round((totals.kcal / GOAL_KCAL) * 100);
@@ -61,6 +62,10 @@ export default function DailySummary({ entries, profile, selectedDate, goalHisto
         <MacroRow label="Sacharidy" value={totals.carbs} goal={GOALS.carbs} />
         <MacroRow label="Tuky" value={totals.fat} goal={GOALS.fat} />
         <MacroRow label="Vláknina" value={totals.fiber} goal={GOALS.fiber} />
+        <div className="liquids-row">
+          <span className="liquids-label">💧 Tekutiny</span>
+          <span className="liquids-val">{Math.round(totals.ml).toLocaleString('cs-CZ')} ml</span>
+        </div>
       </div>
     </div>
   );
