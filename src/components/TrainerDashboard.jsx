@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useClientList, setClientStatus } from '../hooks/useTrainerData';
 import { getGoalForDate } from '../hooks/useGoalHistory';
 import { supabase } from '../lib/supabase';
+import { fetchAllRows } from '../lib/fetchAllRows';
 import { useAuth } from '../contexts/AuthContext';
 
 // Barvy kalorického kruhu (musí sedět s DailySummary).
@@ -31,23 +32,29 @@ async function buildBulkSummary(clientObjs, dates) {
   const dayIds = dayRows.map((d) => d.id);
   const dayIdByKey = new Map(dayRows.map((d) => [keyOf(d.user_id, d.date), d.id]));
 
-  // 2) kalorie z entries + 3) poznámky — pro všechny day_id najednou
-  const [entriesRes, notesRes] = await Promise.all([
+  // 2) kalorie z entries + 3) poznámky — pro všechny day_id najednou.
+  // Stránkujeme (fetchAllRows), protože přes všechny klientky × dny snadno
+  // přeteče limit ~1000 řádků a nejnovější položky by se tiše ořízly.
+  const [entries, notes] = await Promise.all([
     dayIds.length
-      ? supabase.from('diary_entries').select('day_id, kcal').in('day_id', dayIds)
-      : Promise.resolve({ data: [] }),
+      ? fetchAllRows(() =>
+          supabase.from('diary_entries').select('day_id, kcal')
+            .in('day_id', dayIds).order('id', { ascending: true }))
+      : Promise.resolve([]),
     dayIds.length
-      ? supabase.from('meal_notes').select('day_id, note_text').in('day_id', dayIds)
-      : Promise.resolve({ data: [] }),
+      ? fetchAllRows(() =>
+          supabase.from('meal_notes').select('day_id, note_text')
+            .in('day_id', dayIds).order('id', { ascending: true }))
+      : Promise.resolve([]),
   ]);
   const kcalByDay = new Map();
   const hasEntryByDay = new Set();
-  for (const e of entriesRes.data || []) {
+  for (const e of entries) {
     hasEntryByDay.add(e.day_id);
     kcalByDay.set(e.day_id, (kcalByDay.get(e.day_id) || 0) + (e.kcal || 0));
   }
   const noteByDay = new Map();
-  for (const n of notesRes.data || []) {
+  for (const n of notes) {
     const t = (n.note_text || '').trim();
     if (!t) continue;
     const prev = noteByDay.get(n.day_id);
@@ -87,10 +94,14 @@ async function buildBulkSummary(clientObjs, dates) {
   ]);
   const recentDayRows = recentDaysRes.data || [];
   const recentDayIds = recentDayRows.map((d) => d.id);
-  const recentEntriesRes = recentDayIds.length
-    ? await supabase.from('diary_entries').select('day_id').in('day_id', recentDayIds)
-    : { data: [] };
-  const dayIdsWithEntries = new Set((recentEntriesRes.data || []).map((e) => e.day_id));
+  // Stránkujeme: 14 dní × všechny klientky snadno přeteče 1000 řádků a oříznutí
+  // by zahodilo nejnovější zápisy → aktivní klientka by se jevila jako neaktivní.
+  const recentEntries = recentDayIds.length
+    ? await fetchAllRows(() =>
+        supabase.from('diary_entries').select('day_id')
+          .in('day_id', recentDayIds).order('id', { ascending: true }))
+    : [];
+  const dayIdsWithEntries = new Set(recentEntries.map((e) => e.day_id));
 
   const lastFoodByUser = new Map();
   for (const d of recentDayRows) {

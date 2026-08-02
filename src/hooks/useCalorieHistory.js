@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { fetchAllRows } from '../lib/fetchAllRows';
 
 export function useCalorieHistory(userId) {
   const [data, setData] = useState([]);
@@ -23,27 +24,21 @@ export function useCalorieHistory(userId) {
 
     const dayIds = days.map((d) => d.id);
 
-    // Get all entries for those days. POZOR: PostgREST vrací max ~1000 řádků na
-    // jeden dotaz, takže u klientek s >1000 položkami se dřív graf tiše ořízl –
-    // nejnovější dny přišly o část položek a jevily se jako „pod cílem". Proto
-    // stránkujeme přes .range() se stabilním řazením podle id, dokud nedojdou.
-    const PAGE = 1000;
-    const kcalByDayId = {};
-    for (let from = 0; ; from += PAGE) {
-      const { data: batch, error: entErr } = await supabase
+    // Get all entries for those days. Stránkujeme přes fetchAllRows, protože
+    // PostgREST vrací max ~1000 řádků – u klientek s >1000 položkami se dřív
+    // graf tiše ořízl a nejnovější dny se jevily jako „pod cílem".
+    const entries = await fetchAllRows(() =>
+      supabase
         .from('diary_entries')
         .select('day_id, kcal')
         .in('day_id', dayIds)
-        .order('id', { ascending: true })
-        .range(from, from + PAGE - 1);
+        .order('id', { ascending: true }),
+    );
 
-      if (entErr || !batch?.length) break;
-
-      for (const e of batch) {
-        kcalByDayId[e.day_id] = (kcalByDayId[e.day_id] || 0) + (e.kcal || 0);
-      }
-
-      if (batch.length < PAGE) break;
+    // Sum kcal per day
+    const kcalByDayId = {};
+    for (const e of entries) {
+      kcalByDayId[e.day_id] = (kcalByDayId[e.day_id] || 0) + (e.kcal || 0);
     }
 
     // Build result: only days that have entries
