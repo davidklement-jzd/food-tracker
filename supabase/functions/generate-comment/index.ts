@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
       admin.from("diary_days").select("id, user_id, date").eq("id", day_id).single(),
       admin
         .from("diary_entries")
-        .select("meal_id, name, grams, kcal, protein, carbs, fat, fiber")
+        .select("meal_id, name, grams, kcal, protein, carbs, fat, fiber, group_id, group_name")
         .eq("day_id", day_id)
         .order("sort_order"),
       admin

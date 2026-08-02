@@ -605,6 +605,12 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                         targetTotal && originalTotal > 0
                           ? targetTotal / originalTotal
                           : 1;
+                      // Jedno uložené jídlo = jedna skupina řádků se sdíleným
+                      // group_id a názvem jídla. UI je pak sbalí do jedné položky.
+                      const groupId =
+                        typeof crypto !== 'undefined' && crypto.randomUUID
+                          ? crypto.randomUUID()
+                          : `${Date.now()}-${Math.random()}`;
                       const entries = t.items.map((item) => {
                         const g = Math.round((Number(item.grams) || 0) * scale);
                         const unit = item.unit || 'g';
@@ -625,6 +631,8 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                           food_id: item.food_id || null,
                           unit,
                           portions: null,
+                          group_id: groupId,
+                          group_name: t.name,
                         };
                       });
                       for (const entry of entries) onAdd(entry);
@@ -636,7 +644,14 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                         <div className="template-card">
                           <div
                             className="template-card-main"
-                            onClick={() => insertTemplate()}
+                            onClick={() => {
+                              if (isRescaling) {
+                                setRescaleId(null);
+                              } else {
+                                setRescaleId(t.id);
+                                setRescaleValue(String(Math.round(originalTotal)));
+                              }
+                            }}
                           >
                             <div className="template-card-info">
                               <span className="template-card-name">{t.name}</span>
@@ -646,18 +661,6 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                             </div>
                           </div>
                           <div className="template-card-actions">
-                            <button
-                              className="template-action-btn rescale"
-                              onClick={() => {
-                                if (isRescaling) {
-                                  setRescaleId(null);
-                                } else {
-                                  setRescaleId(t.id);
-                                  setRescaleValue(String(Math.round(originalTotal)));
-                                }
-                              }}
-                              title="Upravit celkovou gramáž"
-                            >⚖</button>
                             {onDeleteTemplate && (
                               <button
                                 className="template-action-btn"
@@ -669,7 +672,7 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                         </div>
                         {isRescaling && (
                           <div className="template-rescale-row">
-                            <span className="template-rescale-label">Celkem:</span>
+                            <span className="template-rescale-label">Kolik gramů?</span>
                             <input
                               type="number"
                               className="template-rescale-input"
@@ -691,7 +694,13 @@ export default function FoodSearchModal({ mealLabel, mealId, targetUserId = null
                                 const n = Number(rescaleValue);
                                 if (n > 0) insertTemplate(n);
                               }}
+                              title="Zapsat"
                             >✓</button>
+                          </div>
+                        )}
+                        {isRescaling && (
+                          <div className="template-rescale-hint">
+                            Předvyplněno celé jídlo ({Math.round(originalTotal)} g). Chcete-li jen část, snižte gramáž — suroviny se přepočítají poměrově.
                           </div>
                         )}
                       </div>

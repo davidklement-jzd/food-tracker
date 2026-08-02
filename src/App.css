@@ -615,6 +615,58 @@ html, body {
   border-bottom: none;
 }
 
+/* Uložené jídlo jako jedna sbalitelná položka */
+.meal-group {
+  border-bottom: 1px solid #f8f8f8;
+}
+.meal-group:last-child {
+  border-bottom: none;
+}
+.meal-group-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  gap: 12px;
+  cursor: pointer;
+  background: #fafbf9;
+}
+.meal-group-header:hover {
+  background: #f3f6f1;
+}
+.meal-group-caret {
+  display: inline-block;
+  width: 14px;
+  color: #7cae5f;
+  font-size: var(--text-12);
+}
+.meal-group-badge {
+  margin-right: 4px;
+}
+.meal-group-header .entry-name {
+  font-weight: 600;
+}
+.meal-group-amount {
+  color: #999;
+}
+.meal-group-items {
+  background: #fcfdfb;
+  border-top: 1px dashed #e6ede1;
+}
+.meal-entry-child {
+  padding-left: 30px;
+  border-bottom: 1px solid #f4f6f2;
+}
+.meal-entry-child:last-child {
+  border-bottom: none;
+}
+
+.template-rescale-hint {
+  padding: 4px 12px 10px;
+  font-size: var(--text-12);
+  color: #8a8a8a;
+  line-height: 1.35;
+}
+
 .entry-info {
   flex: 1;
   min-width: 0;

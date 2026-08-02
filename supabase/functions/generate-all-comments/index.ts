@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
       const [entriesRes, commentsRes, notesRes] = await Promise.all([
         admin
           .from("diary_entries")
-          .select("meal_id, name, grams, kcal, protein, carbs, fat, fiber")
+          .select("meal_id, name, grams, kcal, protein, carbs, fat, fiber, group_id, group_name")
           .eq("day_id", dayRow.id)
           .order("sort_order"),
         admin

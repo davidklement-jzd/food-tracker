@@ -62,6 +62,8 @@ export function buildDiaryEntry(entry) {
     food_id: entry.food_id || null,
     portions: derivedPortions,
     created_by: entry.created_by,
+    group_id: entry.group_id || null,
+    group_name: entry.group_name || null,
   };
 }
 
@@ -205,6 +207,8 @@ export function useSupabaseDiary(userId, selectedDate) {
         created_by: currentUser?.id || null,
         food_id: entry.food_id || null,
         unit: entry.unit || 'g',
+        group_id: entry.group_id || null,
+        group_name: entry.group_name || null,
       })
       .select()
       .single();
@@ -228,6 +232,8 @@ export function useSupabaseDiary(userId, selectedDate) {
       unit: data.unit || entry.unit || 'g',
       food_id: data.food_id || null,
       portions: entry.portions || null,
+      group_id: data.group_id || null,
+      group_name: data.group_name || null,
     };
 
     setDayData((prev) => ({

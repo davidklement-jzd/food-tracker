@@ -233,6 +233,9 @@ export interface DayEntry {
   carbs?: unknown;
   fat?: unknown;
   fiber?: unknown;
+  // Uložené jídlo: řádky se stejným group_id patří k jednomu jídlu (group_name).
+  group_id?: unknown;
+  group_name?: unknown;
 }
 
 export interface BuildDayContextInput {
@@ -338,12 +341,58 @@ export function buildDayContextPrompt(input: BuildDayContextInput): string {
     );
 
     if (isCurrent) {
-      // Detailed list for the meal being commented
+      // Detailed list for the meal being commented. Uložená jídla (řádky se
+      // stejným group_id) vypíšeme jako jednu položku (název + celkové makra) a
+      // pod ní odsazené suroviny, ať AI pozná, že jde o jedno jídlo z více
+      // surovin, a umí se dostat k jeho složení.
+      const units: Array<{ group: boolean; name?: string; items: DayEntry[] }> = [];
+      const groupIdx = new Map<string, number>();
       for (const e of list) {
-        const name = sanitizePromptField(e.name, 80);
-        sections.push(
-          `  - ${name}: ${safeNumber(e.grams)}g, ${safeNumber(e.kcal)} kcal, ${safeNumber(e.protein)}g B, ${safeNumber(e.carbs)}g S, ${safeNumber(e.fat)}g T, ${safeNumber(e.fiber)}g V`,
-        );
+        const gid = typeof e.group_id === "string" ? e.group_id : null;
+        if (gid) {
+          if (groupIdx.has(gid)) {
+            units[groupIdx.get(gid) as number].items.push(e);
+          } else {
+            groupIdx.set(gid, units.length);
+            units.push({
+              group: true,
+              name: sanitizePromptField(e.group_name, 80) || "Uložené jídlo",
+              items: [e],
+            });
+          }
+        } else {
+          units.push({ group: false, items: [e] });
+        }
+      }
+      for (const u of units) {
+        if (u.group) {
+          const gt = u.items.reduce(
+            (acc, e) => ({
+              grams: acc.grams + safeNumber(e.grams),
+              kcal: acc.kcal + safeNumber(e.kcal),
+              protein: acc.protein + safeNumber(e.protein),
+              carbs: acc.carbs + safeNumber(e.carbs),
+              fat: acc.fat + safeNumber(e.fat),
+              fiber: acc.fiber + safeNumber(e.fiber),
+            }),
+            { grams: 0, kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
+          );
+          sections.push(
+            `  - [Uložené jídlo klientky: "${u.name}"] celkem ${Math.round(gt.grams)}g, ${Math.round(gt.kcal)} kcal, ${Math.round(gt.protein)}g B, ${Math.round(gt.carbs)}g S, ${Math.round(gt.fat)}g T, ${Math.round(gt.fiber)}g V — složeno ze surovin:`,
+          );
+          for (const e of u.items) {
+            const name = sanitizePromptField(e.name, 80);
+            sections.push(
+              `      · ${name}: ${safeNumber(e.grams)}g, ${safeNumber(e.kcal)} kcal, ${safeNumber(e.protein)}g B, ${safeNumber(e.carbs)}g S, ${safeNumber(e.fat)}g T, ${safeNumber(e.fiber)}g V`,
+            );
+          }
+        } else {
+          const e = u.items[0];
+          const name = sanitizePromptField(e.name, 80);
+          sections.push(
+            `  - ${name}: ${safeNumber(e.grams)}g, ${safeNumber(e.kcal)} kcal, ${safeNumber(e.protein)}g B, ${safeNumber(e.carbs)}g S, ${safeNumber(e.fat)}g T, ${safeNumber(e.fiber)}g V`,
+          );
+        }
       }
       // Poznámka klientky k tomuto jídlu – kontext ke ZPŮSOBU PŘÍPRAVY
       // (olej/tuk/troubu/vodu), NE položka jídla ke komentování.

@@ -23,6 +23,52 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, onCo
   const [editValue, setEditValue] = useState('');
   const [editUnit, setEditUnit] = useState('g');
   const [editPortions, setEditPortions] = useState(null);
+  const [expandedGroups, setExpandedGroups] = useState({});
+
+  // Seskupení položek do "render jednotek": buď samostatná potravina, nebo
+  // uložené jídlo (skupina řádků se stejným group_id) jako jedna sbalitelná
+  // položka. Pořadí se drží podle prvního výskytu skupiny.
+  const renderUnits = [];
+  const groupIndexById = new Map();
+  for (const entry of entries) {
+    if (entry.group_id) {
+      if (groupIndexById.has(entry.group_id)) {
+        renderUnits[groupIndexById.get(entry.group_id)].entries.push(entry);
+      } else {
+        groupIndexById.set(entry.group_id, renderUnits.length);
+        renderUnits.push({
+          type: 'group',
+          groupId: entry.group_id,
+          name: entry.group_name || 'Uložené jídlo',
+          entries: [entry],
+        });
+      }
+    } else {
+      renderUnits.push({ type: 'single', entry });
+    }
+  }
+
+  function toggleGroup(groupId) {
+    setExpandedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
+  }
+
+  function removeGroup(groupEntries) {
+    for (const e of groupEntries) onRemove(e.id);
+  }
+
+  function sumEntries(list) {
+    return list.reduce(
+      (acc, e) => ({
+        grams: acc.grams + (Number(e.grams) || 0),
+        kcal: acc.kcal + (e.kcal || 0),
+        protein: acc.protein + (e.protein || 0),
+        carbs: acc.carbs + (e.carbs || 0),
+        fat: acc.fat + (e.fat || 0),
+        fiber: acc.fiber + (e.fiber || 0),
+      }),
+      { grams: 0, kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
+    );
+  }
 
   function openNoteEdit() {
     setNoteDraft(note || '');
@@ -90,6 +136,116 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, onCo
     setEditUnit(newUnit);
   }
 
+  function renderEntryRow(entry, isChild = false) {
+    return (
+      <div key={entry.id} className={`meal-entry${isChild ? ' meal-entry-child' : ''}`}>
+        <div className="entry-info">
+          <span className="entry-name">
+            {entry.name}
+            {entry.created_by && ownerId && entry.created_by !== ownerId && (
+              <img src="/icon-192.png" alt="Trenér" className="trainer-entry-icon" />
+            )}
+          </span>
+          {editingEntryId === entry.id ? (
+            <span className="entry-amount-edit">
+              <input
+                type="number"
+                min="1"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitEdit(entry);
+                  if (e.key === 'Escape') setEditingEntryId(null);
+                }}
+                autoFocus
+              />
+              <select
+                value={editUnit}
+                onChange={(e) => handleUnitChange(e.target.value, entry)}
+                className="entry-unit-select"
+              >
+                <option value={entry.unit === 'ml' ? 'ml' : 'g'}>
+                  {entry.unit === 'ml' ? 'ml' : 'g'}
+                </option>
+                {editPortions && editPortions.map((p, i) => (
+                  <option key={i} value={`portion_${i}`}>{portionLabel(p)}</option>
+                ))}
+              </select>
+              <button className="entry-edit-confirm" onClick={() => commitEdit(entry)}>✓</button>
+            </span>
+          ) : (
+            <span
+              className="entry-amount clickable"
+              onClick={() => startEditAmount(entry)}
+              title="Klikni pro úpravu gramáže"
+            >
+              {entry.displayAmount || `${entry.grams}${entry.unit || 'g'}`}
+            </span>
+          )}
+        </div>
+        <div className="entry-macros">
+          <span className="macro-kcal">{entry.kcal} kcal</span>
+          <span className="macro-protein">{entry.protein}g B</span>
+          <span className="macro-carbs">{entry.carbs}g S</span>
+          <span className="macro-fat">{entry.fat}g T</span>
+          <span className="macro-fiber">{entry.fiber || 0}g V</span>
+        </div>
+        <button
+          className="entry-remove"
+          onClick={() => onRemove(entry.id)}
+          title="Odebrat"
+        >
+          ×
+        </button>
+      </div>
+    );
+  }
+
+  function renderGroup(unit) {
+    const g = sumEntries(unit.entries);
+    const isExpanded = !!expandedGroups[unit.groupId];
+    const hasTrainerItem =
+      ownerId && unit.entries.some((e) => e.created_by && e.created_by !== ownerId);
+    return (
+      <div key={unit.groupId} className={`meal-group${isExpanded ? ' expanded' : ''}`}>
+        <div className="meal-group-header" onClick={() => toggleGroup(unit.groupId)}>
+          <div className="entry-info">
+            <span className="entry-name">
+              <span className="meal-group-caret" aria-hidden="true">{isExpanded ? '▾' : '▸'}</span>
+              <span className="meal-group-badge" title="Uložené jídlo">🍽️</span>
+              {unit.name}
+              {hasTrainerItem && (
+                <img src="/icon-192.png" alt="Trenér" className="trainer-entry-icon" />
+              )}
+            </span>
+            <span className="entry-amount meal-group-amount">
+              {Math.round(g.grams)}g · {unit.entries.length} surovin
+            </span>
+          </div>
+          <div className="entry-macros">
+            <span className="macro-kcal">{Math.round(g.kcal)} kcal</span>
+            <span className="macro-protein">{Math.round(g.protein)}g B</span>
+            <span className="macro-carbs">{Math.round(g.carbs)}g S</span>
+            <span className="macro-fat">{Math.round(g.fat)}g T</span>
+            <span className="macro-fiber">{Math.round(g.fiber)}g V</span>
+          </div>
+          <button
+            className="entry-remove"
+            onClick={(e) => { e.stopPropagation(); removeGroup(unit.entries); }}
+            title="Odebrat celé jídlo"
+          >
+            ×
+          </button>
+        </div>
+        {isExpanded && (
+          <div className="meal-group-items">
+            {unit.entries.map((entry) => renderEntryRow(entry, true))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="meal-section">
       <div className="meal-header">
@@ -132,68 +288,9 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, onCo
       </div>
       {entries.length > 0 && (
         <div className="meal-entries">
-          {entries.map((entry) => (
-            <div key={entry.id} className="meal-entry">
-              <div className="entry-info">
-                <span className="entry-name">
-                  {entry.name}
-                  {entry.created_by && ownerId && entry.created_by !== ownerId && (
-                    <img src="/icon-192.png" alt="Trenér" className="trainer-entry-icon" />
-                  )}
-                </span>
-                {editingEntryId === entry.id ? (
-                  <span className="entry-amount-edit">
-                    <input
-                      type="number"
-                      min="1"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') commitEdit(entry);
-                        if (e.key === 'Escape') setEditingEntryId(null);
-                      }}
-                      autoFocus
-                    />
-                    <select
-                      value={editUnit}
-                      onChange={(e) => handleUnitChange(e.target.value, entry)}
-                      className="entry-unit-select"
-                    >
-                      <option value={entry.unit === 'ml' ? 'ml' : 'g'}>
-                        {entry.unit === 'ml' ? 'ml' : 'g'}
-                      </option>
-                      {editPortions && editPortions.map((p, i) => (
-                        <option key={i} value={`portion_${i}`}>{portionLabel(p)}</option>
-                      ))}
-                    </select>
-                    <button className="entry-edit-confirm" onClick={() => commitEdit(entry)}>✓</button>
-                  </span>
-                ) : (
-                  <span
-                    className="entry-amount clickable"
-                    onClick={() => startEditAmount(entry)}
-                    title="Klikni pro úpravu gramáže"
-                  >
-                    {entry.displayAmount || `${entry.grams}${entry.unit || 'g'}`}
-                  </span>
-                )}
-              </div>
-              <div className="entry-macros">
-                <span className="macro-kcal">{entry.kcal} kcal</span>
-                <span className="macro-protein">{entry.protein}g B</span>
-                <span className="macro-carbs">{entry.carbs}g S</span>
-                <span className="macro-fat">{entry.fat}g T</span>
-                <span className="macro-fiber">{entry.fiber || 0}g V</span>
-              </div>
-              <button
-                className="entry-remove"
-                onClick={() => onRemove(entry.id)}
-                title="Odebrat"
-              >
-                ×
-              </button>
-            </div>
-          ))}
+          {renderUnits.map((unit) =>
+            unit.type === 'group' ? renderGroup(unit) : renderEntryRow(unit.entry)
+          )}
         </div>
       )}
       {editingNote && (

@@ -91,21 +91,38 @@ export default function CopyMealModal({ userId, currentDate, targetMealId, onCop
 
   function handleCopy() {
     if (!selectedMeal || !dayEntries[selectedMeal]) return;
-    const entries = dayEntries[selectedMeal].map((e) => ({
-      id: Date.now() + Math.random(),
-      name: e.name,
-      brand: e.brand || '',
-      grams: e.grams,
-      displayAmount: e.display_amount || `${e.grams}${e.unit || 'g'}`,
-      kcal: e.kcal,
-      protein: e.protein,
-      carbs: e.carbs,
-      fat: e.fat,
-      fiber: e.fiber || 0,
-      food_id: e.food_id || null,
-      unit: e.unit || 'g',
-      portions: null,
-    }));
+    // Uložená jídla (skupiny) se při kopírování zachovají jako skupiny, ale
+    // dostanou nové group_id (jde o novou instanci v jiném dni).
+    const newGroupId = {};
+    const entries = dayEntries[selectedMeal].map((e) => {
+      let groupId = null;
+      if (e.group_id) {
+        if (!newGroupId[e.group_id]) {
+          newGroupId[e.group_id] =
+            typeof crypto !== 'undefined' && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `${Date.now()}-${Math.random()}`;
+        }
+        groupId = newGroupId[e.group_id];
+      }
+      return {
+        id: Date.now() + Math.random(),
+        name: e.name,
+        brand: e.brand || '',
+        grams: e.grams,
+        displayAmount: e.display_amount || `${e.grams}${e.unit || 'g'}`,
+        kcal: e.kcal,
+        protein: e.protein,
+        carbs: e.carbs,
+        fat: e.fat,
+        fiber: e.fiber || 0,
+        food_id: e.food_id || null,
+        unit: e.unit || 'g',
+        portions: null,
+        group_id: groupId,
+        group_name: e.group_name || null,
+      };
+    });
     onCopy(entries);
     onClose();
   }
