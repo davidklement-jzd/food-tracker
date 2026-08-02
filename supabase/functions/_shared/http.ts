@@ -370,6 +370,22 @@ export function buildDayContextPrompt(input: BuildDayContextInput): string {
   }
 
   sections.push("");
+
+  // Deterministická pojistka na „přepis jen jednou za den": pokud už některý
+  // dřívější komentář dne o přepisu psal, model se na to nesmí spolehnout, že si
+  // toho sám všimne — dostane tvrdý zákaz. „Přepis" je vyhrazen výhradně pro
+  // kalorický nadbytek, takže výskyt slova v jiném komentáři = přepis už padl.
+  const rewriteAlreadyMentioned = Object.entries(comments).some(
+    ([mealId, text]) =>
+      mealId !== currentMealId && /přepis|přeps|přepíš/i.test(text || ""),
+  );
+  if (rewriteAlreadyMentioned) {
+    sections.push(
+      `⚠️ POZOR: Zmínka o kalorickém PŘEPISU už dnes v dřívějším komentáři zazněla. V TOMTO komentáři ji NEOPAKUJ — žádné „udělám přepis" / „musím přepsat" / „kalorie jsou přes". O přepisu se píše POUZE JEDNOU za den. Drž se samotného jídla a kalorie už dál nehodnoť.`,
+    );
+    sections.push("");
+  }
+
   sections.push(
     `Napište komentář k jídlu [${MEAL_LABELS[currentMealId] || currentMealId}] (max 250 znaků). Vezměte v potaz kontext celého dne a neopakujte doporučení, která už zaznívají v předchozích komentářích. Pokud na ně chcete navázat, klidně to udělejte přirozeně.`,
   );
