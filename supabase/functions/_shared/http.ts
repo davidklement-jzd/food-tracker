@@ -435,6 +435,18 @@ export function buildDayContextPrompt(input: BuildDayContextInput): string {
     sections.push("");
   }
 
+  // Deterministická pojistka: „přepis" je VÝHRADNĚ reakce na nadbytek CELKOVÝCH
+  // kalorií (kcal v červeném, > 110 %). Model občas napíše přepis i tehdy, když
+  // jsou přes jen sacharidy nebo tuky, ale celkové kcal jsou v zeleném. Když
+  // tedy kalorie NEJSOU v červeném, dostane tvrdý zákaz o přepisu psát —
+  // barvy sacharidů/tuků/bílkovin na to nemají žádný vliv.
+  if (kcalPct <= 110) {
+    sections.push(
+      `⚠️ POZOR: Celkové kalorie dnes NEJSOU v červeném (${kcalPct} % cíle). V TOMTO komentáři proto NESMÍ padnout ani slovo o přepisu — žádné „udělám přepis" / „musím přepsat" / „kalorie jsou přes". Přepis se píše VÝHRADNĚ při nadbytku CELKOVÝCH kalorií (> 110 %). To, že jsou přes sacharidy nebo tuky (červené kolečko u makra), přepis NESPOUŠTÍ — pokud je to relevantní, jen to věcně konstatuj, bez přepisu.`,
+    );
+    sections.push("");
+  }
+
   sections.push(
     `Napište komentář k jídlu [${MEAL_LABELS[currentMealId] || currentMealId}] (max 250 znaků). Vezměte v potaz kontext celého dne a neopakujte doporučení, která už zaznívají v předchozích komentářích. Pokud na ně chcete navázat, klidně to udělejte přirozeně.`,
   );

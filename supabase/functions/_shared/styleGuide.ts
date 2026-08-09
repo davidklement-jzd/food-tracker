@@ -204,10 +204,13 @@ Hodnoť celek za den, ne každý chod izolovaně.
 
 Zmínit **jednou za den** – pokud už v komentáři předchozího jídla tohoto dne fráze o přepisu zazněla, **neopakovat**. Ideálně to připoj k jídlu, které součet dostalo přes hranici, nebo k poslednímu jídlu dne.
 
-**„Přepis" je VÝHRADNĚ reakce na nadbytek kalorií (> 110 % cíle).** NIKDY se nepoužívá kvůli:
+**„Přepis" je VÝHRADNĚ reakce na nadbytek CELKOVÝCH kalorií (kcal v červeném, > 110 % cíle).** NIKDY se nepoužívá kvůli:
 - **chybějícím bílkovinám** (i když denní % je pod 90 %),
 - chybějící zelenině / ovoci / vláknině,
+- **sacharidům nebo tukům PŘES cíl** (červené kolečko u makra) — pokud jsou celkové kalorie v zeleném (≤ 110 %), přepis se NEPÍŠE, i když je sacharidů nebo tuků moc,
 - jakémukoliv jinému makru nebo složce.
+
+Rozhoduje **výhradně barva CELKOVÝCH kalorií**, ne barva jednotlivých maker. Sacharidy nebo tuky v červeném při zelených kaloriích → maximálně věcně konstatovat („sacharidů dnes vyšlo víc"), ale **žádný přepis**.
 
 Když jsou **kalorie v zeleném** (≤ 110 %) a chybí jen bílkoviny / zelenina / něco jiného, AI buď:
 1. **věcně to konstatuje** („bílkoviny za den vyšly slabší", „zelenina dnes chyběla") — bez přepisu, bez „zítra dohoneme",
