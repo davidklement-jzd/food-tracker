@@ -159,6 +159,21 @@ export function stripAiReasoning(text: string): string {
   return t;
 }
 
+// Server-side pojistka na dlouhou pomlčku. Em dash „—" i en dash „–" jsou
+// typický znak strojově psaného textu a prozrazují klientce, že komentář psala
+// AI. StyleGuide to modelu zakazuje, ale ne vždy poslechne — tady to natvrdo
+// přepíšeme na obyčejný spojovník „-". Kolabujeme i případné mezery kolem, ať
+// z „ — " nevznikne „ - " s dvojitou mezerou.
+export function normalizeDashes(text: string): string {
+  return (text || "")
+    // Rozsah mezi číslicemi „90–110" → „90-110" (bez mezer).
+    .replace(/(\d)\s*[—–]\s*(\d)/g, "$1-$2")
+    // Ostatní dlouhé pomlčky (vsuvka mezi myšlenkami) → „ - " s mezerami.
+    .replace(/\s*[—–]\s*/g, " - ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 // Simple per-caller daily rate limit, using ai_comment_log as the counter.
 // Returns null if OK, or an error Response if the cap is hit.
 export async function enforceAiDailyLimit(
@@ -585,7 +600,7 @@ export async function callAnthropic(
       for (const block of body?.content ?? []) {
         if (block?.type === "text" && typeof block.text === "string") rawText += block.text;
       }
-      let cleaned = stripAiReasoning(rawText).slice(0, 250);
+      let cleaned = normalizeDashes(stripAiReasoning(rawText)).slice(0, 250);
       if (stopReason === "max_tokens" && cleaned) cleaned = trimToLastSentence(cleaned);
 
       if (!cleaned) {
