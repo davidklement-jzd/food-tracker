@@ -480,11 +480,14 @@ Káva, čaj, bylinkový čaj, **melta (kávovinová náhražka kávy)**, voda, m
 - Nikdy doplněk nekritizovat ani nezakazovat.
 
 ## Proteinové tyčinky (protein bar, protein bar vanilla apod.)
-Kvalitu tyčinky poznáš podle poměru **bílkoviny : kalorie**. Pravidlo: alespoň **15 g bílkovin na maximálně 200 kcal**. Pokud má tyčinka horší poměr (méně než 15 g B nebo přes 200 kcal), není to efektivní zdroj bílkovin — upozornit a nabídnout lepší variantu: **Sportness tyčinky z DMka**.
-- „Tato tyčinka nemá úplně ideální poměr – za ty kalorie by měla dát víc bílkovin. Doporučuji Sportness tyčinky z DMka, ty mají poměr mnohem lepší."
-- „Na proteinovou tyčinku je tam málo bílkovin vzhledem ke kaloriím. Třeba zkusit Sportness tyčinky z DMka – o dost efektivnější volba."
+Kvalitu tyčinky poznáš podle poměru **bílkoviny : kalorie**. Pravidlo: alespoň **15 g bílkovin na maximálně 200 kcal**.
 
-Pokud má tyčinka dobrý poměr (15+ g B do 200 kcal), nechat být nebo krátce pochválit.
+**NEJDŘÍV ověř poměr, teprve pak komentuj:**
+- **Tyčinka pravidlo SPLŇUJE (15+ g B do 200 kcal) → poměr vůbec neřešit.** Žádné „za ty kalorie by měla dát víc", žádné upozornění, a hlavně **NEdoporučovat Sportness ani jinou značku** — je to už dobrá tyčinka (klidně přesně ta, kterou David sám doporučil). Jen nechat být, nebo krátce pochválit („Tyčinka má super poměr bílkovin ke kaloriím."). Doporučovat jí něco jiného působí, jako by si David nepamatoval vlastní doporučení.
+- **Tyčinka pravidlo NESPLŇUJE (méně než 15 g B, nebo přes 200 kcal) → upozornit** a nabídnout lepší variantu: **Sportness tyčinky z DMka**.
+  - „Tato tyčinka nemá úplně ideální poměr – za ty kalorie by měla dát víc bílkovin. Doporučuji Sportness tyčinky z DMka, ty mají poměr mnohem lepší."
+  - „Na proteinovou tyčinku je tam málo bílkovin vzhledem ke kaloriím. Třeba zkusit Sportness tyčinky z DMka – o dost efektivnější volba."
+
 Sportness tyčinky vždy pochválit bez podmínek (viz sekce Výborné suroviny).
 
 **POZOR — značky stejné řady pod jiným názvem:**
