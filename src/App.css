@@ -3185,6 +3185,15 @@ html, body {
   line-height: 1.4;
 }
 
+.trainer-comment-error {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #fdecea;
+  color: #b71c1c;
+  font-size: var(--text-13);
+}
+
 .trainer-comment-footer {
   display: flex;
   justify-content: space-between;

@@ -38,6 +38,14 @@ export async function setClientStatus(clientId, status) {
   return !error;
 }
 
+// Vypršelý / neplatný přihlašovací token. Zápis pak selže tiše, proto ho
+// rozpoznáváme a jednou zopakujeme po obnovení sezení.
+function isAuthError(err) {
+  return err?.code === 'PGRST301'
+    || err?.status === 401
+    || /jwt|token/i.test(err?.message || '');
+}
+
 export function useClientDiary(clientId, selectedDate) {
   const [dayData, setDayData] = useState({});
   const [dayId, setDayId] = useState(null);
@@ -124,23 +132,31 @@ export function useClientDiary(clientId, selectedDate) {
   }, [clientId, selectedDate]);
 
   const saveComment = useCallback(async (mealId, text) => {
-    if (!dayId) return;
+    if (!dayId) return { error: { message: 'Den není načtený, obnovte stránku.' } };
 
     if (!text.trim()) {
       // Delete comment
       const existing = comments[mealId];
-      if (existing) {
-        await supabase.from('trainer_comments').delete().eq('id', existing.id);
-        setComments((prev) => {
-          const next = { ...prev };
-          delete next[mealId];
-          return next;
-        });
+      if (!existing) return {};
+      const runDelete = () => supabase.from('trainer_comments').delete().eq('id', existing.id);
+      let { error } = await runDelete();
+      if (error && isAuthError(error)) {
+        await supabase.auth.refreshSession();
+        ({ error } = await runDelete());
       }
-      return;
+      if (error) {
+        console.error('Error deleting comment:', error);
+        return { error };
+      }
+      setComments((prev) => {
+        const next = { ...prev };
+        delete next[mealId];
+        return next;
+      });
+      return {};
     }
 
-    const { data, error } = await supabase
+    const runUpsert = () => supabase
       .from('trainer_comments')
       .upsert(
         {
@@ -155,15 +171,23 @@ export function useClientDiary(clientId, selectedDate) {
       .select()
       .single();
 
+    let { data, error } = await runUpsert();
+    // Vypršelý token po dlouho otevřené kartě: obnovit sezení a zkusit ještě jednou.
+    if (error && isAuthError(error)) {
+      await supabase.auth.refreshSession();
+      ({ data, error } = await runUpsert());
+    }
+
     if (error) {
       console.error('Error saving comment:', error);
-      return;
+      return { error };
     }
 
     setComments((prev) => ({
       ...prev,
       [mealId]: { id: data.id, text: data.comment_text, author: data.author },
     }));
+    return {};
   }, [dayId, comments]);
 
   const generateAiComment = useCallback(async (mealId, mealLabel, clientProfile) => {

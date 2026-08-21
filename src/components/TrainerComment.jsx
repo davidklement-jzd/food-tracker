@@ -4,14 +4,32 @@ export default function TrainerComment({ mealId, mealLabel, comment, hasEntries,
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(comment?.text || '');
   const [aiLoading, setAiLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
-  function handleSave() {
-    onSave(text.trim());
+  // Editor se zavře až po ÚSPĚŠNÉM uložení. Když zápis selže (vypršelý token,
+  // výpadek), zůstane otevřený i s napsaným textem, ať o něj David nepřijde.
+  async function handleSave() {
+    if (saving) return;
+    setSaving(true);
+    setSaveError('');
+    const res = await onSave(text.trim());
+    setSaving(false);
+    if (res?.error) {
+      setSaveError('Uložení se nepovedlo, zkuste to znovu.');
+      return;
+    }
     setEditing(false);
+  }
+
+  async function handleDelete() {
+    const res = await onSave('');
+    if (res?.error) setSaveError('Smazání se nepovedlo, zkuste to znovu.');
   }
 
   function handleCancel() {
     setText(comment?.text || '');
+    setSaveError('');
     setEditing(false);
   }
 
@@ -45,14 +63,15 @@ export default function TrainerComment({ mealId, mealLabel, comment, hasEntries,
           autoCorrect="off"
           autoCapitalize="sentences"
         />
+        {saveError && <div className="trainer-comment-error">{saveError}</div>}
         <div className="trainer-comment-footer">
           <span className="trainer-comment-chars">{text.length}/250</span>
           <div className="trainer-comment-actions">
-            <button className="trainer-comment-cancel" onClick={handleCancel}>
+            <button className="trainer-comment-cancel" onClick={handleCancel} disabled={saving}>
               Zrušit
             </button>
-            <button className="trainer-comment-save" onClick={handleSave}>
-              Uložit
+            <button className="trainer-comment-save" onClick={handleSave} disabled={saving}>
+              {saving ? 'Ukládám...' : 'Uložit'}
             </button>
           </div>
         </div>
@@ -70,13 +89,14 @@ export default function TrainerComment({ mealId, mealLabel, comment, hasEntries,
           <span className="trainer-comment-text">{comment.text}</span>
         </div>
         <div className="trainer-comment-actions">
-          <button className="trainer-comment-edit" onClick={() => { setText(comment.text); setEditing(true); }}>
+          <button className="trainer-comment-edit" onClick={() => { setText(comment.text); setSaveError(''); setEditing(true); }}>
             Upravit
           </button>
-          <button className="trainer-comment-delete" onClick={() => onSave('')}>
+          <button className="trainer-comment-delete" onClick={handleDelete}>
             Smazat
           </button>
         </div>
+        {saveError && <div className="trainer-comment-error">{saveError}</div>}
       </div>
     );
   }
