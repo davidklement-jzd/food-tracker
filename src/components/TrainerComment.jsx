@@ -60,8 +60,9 @@ export default function TrainerComment({ mealId, mealLabel, comment, hasEntries,
           autoFocus
           maxLength={250}
           lang="cs"
-          autoCorrect="off"
+          autoCorrect="on"
           autoCapitalize="sentences"
+          spellCheck={true}
         />
         {saveError && <div className="trainer-comment-error">{saveError}</div>}
         <div className="trainer-comment-footer">
