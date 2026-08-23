@@ -269,6 +269,24 @@ export interface BuildDayContextInput {
   currentMealNote?: string;
 }
 
+// Deterministická detekce alkoholu v položkách jídla. Slouží jen jako pojistka
+// k pravidlu „když jsou kalorie v červeném, alkohol nechválit" — proto je
+// seznam radši širší a výjimky (hroznové víno = ovoce, nealko pivo, vinný ocet)
+// se odfiltrují dopředu.
+const ALCOHOL_EXCLUDE_RE =
+  /nealko|nealkoholi|bez alkoholu|0[,.]0\s*%|hroznov\S*\s+v[íi]n|vinn\S*\s+oc(et|ta|tem)|rumov\S*\s+(esence|aroma)|pivn\S*\s+kvasnice|pivovarsk/i;
+const ALCOHOL_RE =
+  /prosecc?o|prosekko|šampa[ňn]|champagne|sekt\b|cava\b|v[íi]n(o|a|em|u)\b|v[íi]nn[ýá] st[řr]ik|pivo\b|piva\b|pivem\b|radler|cider|cidre|medovina|sva[řr][áa]k|sva[řr]en[ée]|pun[čc]\b|rum\b|whisk|vodka|gin\b|tequil|liké?r\b|aperol|spritz|mojito|becherovka|slivovice|fernet|ko[ňn]ak|brandy|absint|martini\b|campari|portsk|sangria/i;
+
+function hasAlcohol(list: DayEntry[]): boolean {
+  return list.some((e) => {
+    const text = `${String(e.name ?? "")} ${String(e.group_name ?? "")}`;
+    if (!text.trim()) return false;
+    if (ALCOHOL_EXCLUDE_RE.test(text)) return false;
+    return ALCOHOL_RE.test(text);
+  });
+}
+
 // Builds the user prompt for generating a comment about a specific meal,
 // with full-day context and previously written comments so the AI doesn't
 // repeat itself and can reference earlier meals.
@@ -458,6 +476,17 @@ export function buildDayContextPrompt(input: BuildDayContextInput): string {
   if (kcalPct <= 110) {
     sections.push(
       `⚠️ POZOR: Celkové kalorie dnes NEJSOU v červeném (${kcalPct} % cíle). V TOMTO komentáři proto NESMÍ padnout ani slovo o přepisu — žádné „udělám přepis" / „musím přepsat" / „kalorie jsou přes". Přepis se píše VÝHRADNĚ při nadbytku CELKOVÝCH kalorií (> 110 %). To, že jsou přes sacharidy nebo tuky (červené kolečko u makra), přepis NESPOUŠTÍ — pokud je to relevantní, jen to věcně konstatuj, bez přepisu.`,
+    );
+    sections.push("");
+  }
+
+  // Deterministická pojistka na alkohol: style guide říká, že při kaloriích
+  // v červeném se alkohol nechválí ani neodměňuje. Model to sám občas nedodrží
+  // (napíše „vlezlo se" i u dne na 148 %), takže když je v komentovaném jídle
+  // alkohol a kcal jsou přes 110 %, dostane tvrdý zákaz pochvalných formulací.
+  if (kcalPct > 110 && hasAlcohol(byMeal[currentMealId] || [])) {
+    sections.push(
+      `⚠️ POZOR: V tomto jídle je alkohol a celkové kalorie dne jsou v ČERVENÉM (${kcalPct} % cíle). Alkohol proto NECHVÁLIT a NEPREZENTOVAT jako odměnu — zakázané formulace: „vlezlo se", „vešlo se", „v pohodě", „za odměnu", „zasloužená", „na místě", „užijte si", „příjemný večer". Zároveň žádné kázání ani moralizování, alkohol není terč: buď ho zmiň věcně jako součást kalorického přebytku, nebo o něm nepiš vůbec a zhodnoť zbytek jídla.`,
     );
     sections.push("");
   }
