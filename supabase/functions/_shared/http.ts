@@ -117,6 +117,50 @@ export function safeNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+// Druhý tvar úniku uvažování: model nahlas popisuje, JAK si ověřuje pravidlo,
+// a teprve za tím napíše skutečný komentář. Reálný případ:
+//   "Bambus tyčinka - zkontroluju poměr: 15g B na 201 kcal. Pravidlo je 15g B
+//    do 200 kcal - těsně nesplňuje. Doporučit Sportness. Tyčinka má lehce
+//    slabší poměr bílkovin ke kaloriím. Příště zkuste Sportness z DMka."
+// Nejsou tu žádné markery sebeopravy ("Wait", "Opravím"), takže to projde přes
+// stripAiReasoning níž. Řešíme to jinak: zahodíme ÚVODNÍ meta-věty a vrátíme
+// text od první normální věty dál. Ořezáváme VÝHRADNĚ prefix, takže se nikdy
+// nemůže stát, že bychom uřízli konec skutečného komentáře.
+const DELIBERATION_PATTERNS: RegExp[] = [
+  // Kontrola v 1. osobě: "zkontroluju poměr", "ověřím si", "spočítám", "porovnám".
+  /\b(zkontroluj[iu]|ov[eě][řr][íi]m|spo[čc][íi]t[áa]m|porovn[áa]m|pod[íi]v[áa]m\s+se)\b/i,
+  // Citace pravidla klientce: "Pravidlo je 15g B do 200 kcal", "nesplňuje pravidlo".
+  /\bpravidl[oau]\b/i,
+  // Poznámka pro sebe v infinitivu jako celá věta: "Doporučit Sportness."
+  /^\s*(doporu[čc]it|upozornit|pochv[áa]lit|nechv[áa]lit|ne[řr]e[šs]it|zm[íi]nit|nab[íi]dnout|navrhnout|nepsat|napsat)\b/i,
+];
+
+const MAX_DELIBERATION_SENTENCES = 4;
+
+export function stripLeadingDeliberation(text: string): string {
+  const t = (text || "").trim();
+  if (!t) return t;
+
+  // Dělíme po větách. Tečka uvnitř čísla ("201.5 kcal") se nedělí, protože
+  // vyžadujeme mezeru za interpunkcí.
+  const sentences = t.split(/(?<=[.!?])\s+/);
+  if (sentences.length < 2) return t;
+
+  let start = 0;
+  while (
+    start < sentences.length - 1 &&
+    start < MAX_DELIBERATION_SENTENCES &&
+    DELIBERATION_PATTERNS.some((re) => re.test(sentences[start]))
+  ) {
+    start++;
+  }
+  if (start === 0) return t;
+
+  const rest = sentences.slice(start).join(" ").trim();
+  // Pojistka: když by ze zbytku zbyl jen útržek, radši nesahat na nic.
+  return rest.length >= 20 ? rest : t;
+}
+
 // Server-side pojistka: i když model i přes instrukce v promptu „přemýšlí
 // nahlas" nebo se uprostřed komentáře opraví, tohle to vyřízne, aby se to
 // NIKDY nedostalo ke klientce. Komentář se generuje bez thinkingu, takže
@@ -129,6 +173,9 @@ export function safeNumber(value: unknown, fallback = 0): number {
 export function stripAiReasoning(text: string): string {
   let t = (text || "").trim();
   if (!t) return t;
+
+  // Nejdřív pryč s úvodním „přemýšlením nad pravidlem" (viz komentář výš).
+  t = stripLeadingDeliberation(t);
 
   // Markery, které se v normálním českém komentáři NIKDY nevyskytují a značí,
   // že model komentuje sám sebe / restartuje. ("přepíšu" / "udělám přepis"
