@@ -527,13 +527,19 @@ export function buildDayContextPrompt(input: BuildDayContextInput): string {
     sections.push("");
   }
 
-  // Deterministická pojistka na alkohol: style guide říká, že při kaloriích
-  // v červeném se alkohol nechválí ani neodměňuje. Model to sám občas nedodrží
-  // (napíše „vlezlo se" i u dne na 148 %), takže když je v komentovaném jídle
-  // alkohol a kcal jsou přes 110 %, dostane tvrdý zákaz pochvalných formulací.
-  if (kcalPct > 110 && hasAlcohol(byMeal[currentMealId] || [])) {
+  // Deterministická pojistka na alkohol. Style guide dovoluje alkohol pochválit
+  // („za odměnu v pohodě") jen tehdy, když platí OBĚ podmínky zároveň: kalorie
+  // v zeleném (≤ 110 %) A denní bílkoviny splněné (≥ 100 %). Model si sám hlídal
+  // jen kalorie, takže chválil i dny, kde bílkoviny nedošly (Prosecco při 95 %
+  // bílkovin, pivo při 55 %). Když kterákoliv podmínka padne, dostane tvrdý zákaz.
+  if (hasAlcohol(byMeal[currentMealId] || []) && (kcalPct > 110 || proteinPct < 100)) {
+    const duvod = kcalPct > 110 && proteinPct < 100
+      ? `celkové kalorie jsou v ČERVENÉM (${kcalPct} % cíle) a bílkoviny za den nedošly (${proteinPct} %)`
+      : kcalPct > 110
+      ? `celkové kalorie jsou v ČERVENÉM (${kcalPct} % cíle)`
+      : `bílkoviny za den nedošly (${proteinPct} % cíle, pochvala alkoholu vyžaduje 100 % a víc)`;
     sections.push(
-      `⚠️ POZOR: V tomto jídle je alkohol a celkové kalorie dne jsou v ČERVENÉM (${kcalPct} % cíle). Alkohol proto NECHVÁLIT a NEPREZENTOVAT jako odměnu — zakázané formulace: „vlezlo se", „vešlo se", „v pohodě", „za odměnu", „zasloužená", „na místě", „užijte si", „příjemný večer". Zároveň žádné kázání ani moralizování, alkohol není terč: buď ho zmiň věcně jako součást kalorického přebytku, nebo o něm nepiš vůbec a zhodnoť zbytek jídla.`,
+      `⚠️ POZOR: V tomto jídle je alkohol a ${duvod}. Alkohol proto NECHVÁLIT a NEPREZENTOVAT jako odměnu — zakázané formulace: „vlezlo se", „vešlo se", „v pohodě", „za odměnu", „zasloužená", „na místě", „užijte si", „příjemný večer". Zároveň žádné kázání ani moralizování, alkohol není terč: buď ho zmiň věcně, nebo o něm nepiš vůbec a zhodnoť zbytek jídla.`,
     );
     sections.push("");
   }
