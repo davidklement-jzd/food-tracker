@@ -3326,6 +3326,20 @@ html, body {
   color: #c62828;
 }
 
+/* Seznam klientek, u kterých generování selhalo (běh pokračuje dál). */
+.trainer-bulk-failures {
+  margin-top: 8px;
+}
+
+.trainer-bulk-failures ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.trainer-bulk-failures li {
+  margin-top: 2px;
+}
+
 /* ===== BULK SUMMARY TABLE ===== */
 .trainer-summary {
   margin-bottom: 16px;

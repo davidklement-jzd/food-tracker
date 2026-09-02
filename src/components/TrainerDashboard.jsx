@@ -395,6 +395,40 @@ export default function TrainerDashboard({ onSelectClient }) {
     }
   }
 
+  // Ze Supabase invoke chyby vytáhne, co se opravdu stalo (status + tělo
+  // odpovědi z edge funkce). Bez toho vidíme jen „FunctionsHttpError" a
+  // nedá se poznat, jestli šlo o limit AI, timeout, nebo výpadek sítě.
+  async function describeInvokeError(error) {
+    if (!error) return 'neznámá chyba';
+    const ctx = error.context;
+    if (ctx && typeof ctx.text === 'function') {
+      try {
+        const body = (await ctx.text()).slice(0, 200);
+        return `HTTP ${ctx.status}${body ? ` – ${body}` : ''}`;
+      } catch {
+        return `HTTP ${ctx.status ?? '?'}`;
+      }
+    }
+    return error.message || String(error);
+  }
+
+  // Jeden pokus navíc na přechodné výpadky. Generování jedné klientky trvá
+  // i přes 25 s, takže ojedinělý timeout / 5xx je normální provozní jev —
+  // není důvod kvůli němu hlásit chybu, když druhý pokus projde.
+  async function invokeWithRetry(date, clientId) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { data, error } = await supabase.functions.invoke('generate-all-comments', {
+        body: { date, client_ids: [clientId] },
+      });
+      if (!error) return { data };
+      const detail = await describeInvokeError(error);
+      if (attempt === 1) return { error: detail };
+      console.warn(`Pokus ${attempt + 1} selhal (${detail}), zkouším znovu.`);
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    return { error: 'neznámá chyba' };
+  }
+
   async function commentSelected() {
     if (selectedIds.size === 0 || selectedDates.size === 0) return;
     const clientIds = [...selectedIds];
@@ -409,22 +443,23 @@ export default function TrainerDashboard({ onSelectClient }) {
     let totalGenerated = 0;
     let totalSkipped = 0;
     let done = 0;
+    const failures = [];
+    const nameById = new Map(clients.map((c) => [c.id, c.display_name || c.email || 'Bez jména']));
 
     try {
       for (const date of dates) {
         for (const clientId of clientIds) {
-          const { data, error } = await supabase.functions.invoke('generate-all-comments', {
-            body: { date, client_ids: [clientId] },
-          });
-
-          if (error) {
-            console.error('Bulk comment error:', error);
-            setBulkResult({ error: 'Chyba při generování komentářů.' });
-            setBulkLoading(false);
-            return;
+          // Jedna klientka nesmí shodit celý běh — u 30 klientek by kvůli
+          // jednomu výpadku zůstala většina bez komentářů. Selhání si
+          // poznamenáme, jednou zopakujeme a jedeme dál.
+          const res = await invokeWithRetry(date, clientId);
+          if (res.error) {
+            console.error(`Bulk comment error (${nameById.get(clientId)}, ${date}):`, res.error);
+            failures.push({ name: nameById.get(clientId), date, detail: res.error });
+          } else {
+            totalGenerated += res.data?.generated || 0;
+            totalSkipped += res.data?.skipped || 0;
           }
-          totalGenerated += data.generated || 0;
-          totalSkipped += data.skipped || 0;
           done++;
           setBulkProgress({ current: done, total });
         }
@@ -434,6 +469,7 @@ export default function TrainerDashboard({ onSelectClient }) {
         success: true,
         generated: totalGenerated,
         skipped: totalSkipped,
+        failures,
       });
 
       // Po dokončení sestav trenérský přehled okomentovaných klientek.
@@ -446,7 +482,7 @@ export default function TrainerDashboard({ onSelectClient }) {
       }
     } catch (err) {
       console.error('Bulk comment error:', err);
-      setBulkResult({ error: 'Chyba při generování komentářů.' });
+      setBulkResult({ error: `Chyba při generování komentářů: ${describeInvokeError(err)}` });
     }
 
     setBulkLoading(false);
@@ -610,10 +646,24 @@ export default function TrainerDashboard({ onSelectClient }) {
       )}
 
       {bulkResult && (
-        <div className={`trainer-bulk-result ${bulkResult.error ? 'error' : 'success'}`}>
+        <div className={`trainer-bulk-result ${bulkResult.error || bulkResult.failures?.length ? 'error' : 'success'}`}>
           {bulkResult.error
             ? bulkResult.error
             : `Vygenerováno ${bulkResult.generated} komentářů, přeskočeno ${bulkResult.skipped} jídel.`}
+          {bulkResult.failures?.length > 0 && (
+            <div className="trainer-bulk-failures">
+              Nepodařilo se u {bulkResult.failures.length}{' '}
+              {bulkResult.failures.length === 1 ? 'klientky' : 'klientek'} - zkuste u nich
+              generování zopakovat:
+              <ul>
+                {bulkResult.failures.map((f, i) => (
+                  <li key={i}>
+                    {f.name} ({shortDate(f.date)}) - {f.detail}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
