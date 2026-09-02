@@ -221,6 +221,67 @@ export function normalizeDashes(text: string): string {
     .trim();
 }
 
+// Server-side pojistka na cizí písmo. Model občas uprostřed českého slova
+// „přepne skript" a napíše pár písmen azbukou („100 g eидamu" místo
+// „eidamu"). Klientce to připadá jako rozbitá aplikace, takže to tady
+// přepíšeme zpátky na latinku.
+//
+// Mapujeme FONETICKY (и→i, д→d, ч→č), NE podle vzhledu (и nevypadá jako „i").
+// Model totiž sáhne po znaku se stejnou hláskou, ne se stejným tvarem —
+// proto с→s a ne c, р→r a ne p, х→ch a ne x.
+const FOREIGN_LETTER_MAP: Record<string, string> = {
+  // Azbuka — malá písmena
+  "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
+  "ж": "ž", "з": "z", "и": "i", "і": "i", "ї": "i", "й": "j", "к": "k",
+  "л": "l", "м": "m", "н": "n", "о": "o", "п": "p", "р": "r", "с": "s",
+  "т": "t", "у": "u", "ф": "f", "х": "ch", "ц": "c", "ч": "č", "ш": "š",
+  "щ": "š", "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "u", "я": "a",
+  "є": "e", "ґ": "g",
+  // Azbuka — velká písmena
+  "А": "A", "Б": "B", "В": "V", "Г": "G", "Д": "D", "Е": "E", "Ё": "E",
+  "Ж": "Ž", "З": "Z", "И": "I", "І": "I", "Ї": "I", "Й": "J", "К": "K",
+  "Л": "L", "М": "M", "Н": "N", "О": "O", "П": "P", "Р": "R", "С": "S",
+  "Т": "T", "У": "U", "Ф": "F", "Х": "Ch", "Ц": "C", "Ч": "Č", "Ш": "Š",
+  "Щ": "Š", "Ы": "Y", "Э": "E", "Ю": "U", "Я": "A", "Є": "E", "Ґ": "G",
+  // Řečtina (vzácnější, ale stejný typ přepnutí písma)
+  "α": "a", "β": "b", "γ": "g", "δ": "d", "ε": "e", "ζ": "z", "η": "e",
+  "θ": "t", "ι": "i", "κ": "k", "λ": "l", "μ": "m", "ν": "n", "ξ": "x",
+  "ο": "o", "π": "p", "ρ": "r", "σ": "s", "ς": "s", "τ": "t", "υ": "u",
+  "φ": "f", "χ": "ch", "ψ": "ps", "ω": "o",
+  "Α": "A", "Β": "B", "Γ": "G", "Δ": "D", "Ε": "E", "Ζ": "Z", "Η": "E",
+  "Θ": "T", "Ι": "I", "Κ": "K", "Λ": "L", "Μ": "M", "Ν": "N", "Ξ": "X",
+  "Ο": "O", "Π": "P", "Ρ": "R", "Σ": "S", "Τ": "T", "Υ": "U", "Φ": "F",
+  "Χ": "Ch", "Ψ": "Ps", "Ω": "O",
+};
+
+// Latinka + Common (číslice, interpunkce, emoji) + Inherited (háčky a čárky)
+// je všechno, co v českém komentáři smí být. Cokoliv jiného je průšvih.
+const NON_LATIN_RE = /[^\p{Script=Latin}\p{Script=Common}\p{Script=Inherited}]/u;
+
+export function normalizeForeignScript(text: string): string {
+  const t = text || "";
+  if (!t || !NON_LATIN_RE.test(t)) return t;
+
+  let out = "";
+  for (const ch of t) {
+    const mapped = FOREIGN_LETTER_MAP[ch];
+    if (mapped !== undefined) {
+      out += mapped;
+      continue;
+    }
+    // Písmeno jiného písma, které neumíme přepsat (čínština, arabština…):
+    // zahodit. Díra ve slově je pořád lepší než „中" v komentáři klientce.
+    if (/\p{L}/u.test(ch) && !/\p{Script=Latin}/u.test(ch)) continue;
+    out += ch;
+  }
+  out = out.replace(/\s{2,}/g, " ").trim();
+
+  if (out !== t) {
+    console.warn("[ai] cizí písmo v komentáři, opraveno:", JSON.stringify(t.slice(0, 120)));
+  }
+  return out;
+}
+
 // Simple per-caller daily rate limit, using ai_comment_log as the counter.
 // Returns null if OK, or an error Response if the cap is hit.
 export async function enforceAiDailyLimit(
@@ -682,7 +743,7 @@ export async function callAnthropic(
       for (const block of body?.content ?? []) {
         if (block?.type === "text" && typeof block.text === "string") rawText += block.text;
       }
-      let cleaned = normalizeDashes(stripAiReasoning(rawText)).slice(0, 250);
+      let cleaned = normalizeDashes(stripAiReasoning(normalizeForeignScript(rawText))).slice(0, 250);
       if (stopReason === "max_tokens" && cleaned) cleaned = trimToLastSentence(cleaned);
 
       if (!cleaned) {
