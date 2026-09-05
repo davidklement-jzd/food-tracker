@@ -117,48 +117,97 @@ export function safeNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-// Druhý tvar úniku uvažování: model nahlas popisuje, JAK si ověřuje pravidlo,
-// a teprve za tím napíše skutečný komentář. Reálný případ:
-//   "Bambus tyčinka - zkontroluju poměr: 15g B na 201 kcal. Pravidlo je 15g B
-//    do 200 kcal - těsně nesplňuje. Doporučit Sportness. Tyčinka má lehce
-//    slabší poměr bílkovin ke kaloriím. Příště zkuste Sportness z DMka."
-// Nejsou tu žádné markery sebeopravy ("Wait", "Opravím"), takže to projde přes
-// stripAiReasoning níž. Řešíme to jinak: zahodíme ÚVODNÍ meta-věty a vrátíme
-// text od první normální věty dál. Ořezáváme VÝHRADNĚ prefix, takže se nikdy
-// nemůže stát, že bychom uřízli konec skutečného komentáře.
+// Únik vnitřního uvažování, který nemá žádný marker sebeopravy ("Wait",
+// "Opravím"), a projde proto přes stripAiReasoning níž. Dva reálné případy:
+//
+//   a) model nahlas popisuje, JAK si ověřuje pravidlo, a teprve za tím napíše
+//      komentář:
+//      "Bambus tyčinka - zkontroluju poměr: 15g B na 201 kcal. Pravidlo je 15g
+//       B do 200 kcal - těsně nesplňuje. Doporučit Sportness. Tyčinka má lehce
+//       slabší poměr bílkovin ke kaloriím. Příště zkuste Sportness z DMka."
+//
+//   b) model si nahlas plánuje, co a jak dlouze napíše - a to i UPROSTŘED věty
+//      a na KONCI komentáře:
+//      "Kolagen hezky doplňuje svačinu, jedna věta za zmínku - budu ho vždy
+//       chválit. Kokos-rýžový nápoj není problém, ale na bílkoviny toho moc
+//       nedá. Mass gainer a kolagen to zachraňují. Přemýšlím, co má smysl
+//       zmínit."
+//
+// Kvůli (b) neořezáváme jen prefix: meta-věty vyhazujeme kdekoliv v textu a
+// uvnitř věty ořízneme od první meta-vsuvky dál. Ze druhého případu tak zbyde
+// "Kolagen hezky doplňuje svačinu. Kokos-rýžový nápoj není problém, ale na
+// bílkoviny toho moc nedá. Mass gainer a kolagen to zachraňují."
+//
+// Vzory musí být takové, které se v normálním komentáři klientce NEVYSKYTNOU.
+// Proto tu ZÁMĚRNĚ není "budu vždy chválit" - to je Davidova hláška u tvarůžků
+// a vývaru (viz styleGuide § 12) a filtr by ji vyhodil.
 const DELIBERATION_PATTERNS: RegExp[] = [
   // Kontrola v 1. osobě: "zkontroluju poměr", "ověřím si", "spočítám", "porovnám".
   /\b(zkontroluj[iu]|ov[eě][řr][íi]m|spo[čc][íi]t[áa]m|porovn[áa]m|pod[íi]v[áa]m\s+se)\b/i,
+  // Přemýšlení nahlas: "Přemýšlím, co zmínit", "zvažuju", "říkám si".
+  /\b(p[řr]em[ýy][šs]l[íi]m|zva[žz]uj[iu]|rozm[ýy][šs]l[íi]m|[řr][íi]k[áa]m\s+si)\b/i,
+  // Rozvaha, co do komentáře pustit: "co má smysl zmínit", "co ještě řešit".
+  /\bco\s+(je[šs]t[ěe]\s+|u[žz]\s+)?(m[áa]|nem[áa])\s+smysl\s+(zm[íi]nit|[řr]e[šs]it|ps[áa]t|komentovat)\b/i,
   // Citace pravidla klientce: "Pravidlo je 15g B do 200 kcal", "nesplňuje pravidlo".
   /\bpravidl[oau]\b/i,
-  // Poznámka pro sebe v infinitivu jako celá věta: "Doporučit Sportness."
-  /^\s*(doporu[čc]it|upozornit|pochv[áa]lit|nechv[áa]lit|ne[řr]e[šs]it|zm[íi]nit|nab[íi]dnout|navrhnout|nepsat|napsat)\b/i,
+  // Meta o délce vlastního textu: "jedna věta za zmínku", "krátce jednou větou".
+  /\b(jedn[au]|jednou|kr[áa]tk[áou]|prvn[íi])\s+v[ěe]t(a|u|ou|ě)\b/i,
+  /(?<!stoj[íi]\s)\bza\s+zm[íi]nku\b/i,
+  // Model mluví o komentáři jako o objektu: "do komentáře", "tenhle komentář".
+  /\bkoment[áa][řr](i|e|em|[ůu]|[íi]ch|[íi]ky?)?\b/i,
+  // Poznámka pro sebe v infinitivu jako celý úsek: "Doporučit Sportness."
+  /^\s*(doporu[čc]it|upozornit|pochv[áa]lit|nechv[áa]lit|ne[řr]e[šs]it|zm[íi]nit|nezm[íi]nit|nab[íi]dnout|navrhnout|nepsat|napsat|p[řr]ej[íi]t)\b/i,
 ];
 
-const MAX_DELIBERATION_SENTENCES = 4;
+const isDeliberation = (s: string) => DELIBERATION_PATTERNS.some((re) => re.test(s));
 
-export function stripLeadingDeliberation(text: string): string {
+// Nejkratší text, který ještě pustíme ke klientce. Když po odstranění meta-vět
+// zbyde míň, vrátíme prázdno - komentář se pak zaloguje jako "empty" a David ho
+// vygeneruje znovu. Ukázat klientce, jak model přemýšlí, je horší než chybějící
+// komentář.
+const MIN_KEPT_LENGTH = 20;
+
+// Zbytek věty před meta-vsuvkou musí dávat smysl sám o sobě. Z "Bambus tyčinka
+// - zkontroluju poměr..." nechceme nechat holé "Bambus tyčinka." - kratší
+// útržek zahodíme celý.
+const MIN_KEPT_CLAUSE_LENGTH = 15;
+
+// Ořízne větu od první meta-vsuvky dál. Vrací "" (celá věta je meta),
+// nebo její čistý začátek zakončený tečkou.
+function stripDeliberationFromSentence(sentence: string): string {
+  // Rozpad na vsuvky: čárka nebo pomlčka mezi myšlenkami. Oddělovače držíme
+  // v poli (liché indexy), ať zachovaná část vypadá přesně jako v originále.
+  const parts = sentence.split(/(,\s*|\s+[-–—]\s+)/);
+  let cut = -1;
+  for (let i = 0; i < parts.length; i += 2) {
+    if (isDeliberation(parts[i])) {
+      cut = i;
+      break;
+    }
+  }
+  if (cut === -1) return sentence.trim();
+  if (cut === 0) return "";
+
+  const kept = parts.slice(0, cut).join("").replace(/[\s,;:–—-]+$/, "").trim();
+  if (kept.length < MIN_KEPT_CLAUSE_LENGTH) return "";
+  return /[.!?…]$/.test(kept) ? kept : `${kept}.`;
+}
+
+export function stripDeliberation(text: string): string {
   const t = (text || "").trim();
   if (!t) return t;
 
   // Dělíme po větách. Tečka uvnitř čísla ("201.5 kcal") se nedělí, protože
   // vyžadujeme mezeru za interpunkcí.
   const sentences = t.split(/(?<=[.!?])\s+/);
-  if (sentences.length < 2) return t;
+  const kept = sentences.map(stripDeliberationFromSentence).filter(Boolean);
+  const out = kept.join(" ").trim();
 
-  let start = 0;
-  while (
-    start < sentences.length - 1 &&
-    start < MAX_DELIBERATION_SENTENCES &&
-    DELIBERATION_PATTERNS.some((re) => re.test(sentences[start]))
-  ) {
-    start++;
-  }
-  if (start === 0) return t;
+  if (out === t) return t;
 
-  const rest = sentences.slice(start).join(" ").trim();
-  // Pojistka: když by ze zbytku zbyl jen útržek, radši nesahat na nic.
-  return rest.length >= 20 ? rest : t;
+  console.warn("[ai] uvažování v komentáři, ořezáno:", JSON.stringify(t.slice(0, 200)));
+  // Když ze zbytku zbyl jen útržek, radši nic než půlka věty nebo meta text.
+  return out.length >= MIN_KEPT_LENGTH ? out : "";
 }
 
 // Server-side pojistka: i když model i přes instrukce v promptu „přemýšlí
@@ -174,8 +223,9 @@ export function stripAiReasoning(text: string): string {
   let t = (text || "").trim();
   if (!t) return t;
 
-  // Nejdřív pryč s úvodním „přemýšlením nad pravidlem" (viz komentář výš).
-  t = stripLeadingDeliberation(t);
+  // Nejdřív pryč s „přemýšlením nahlas" bez markeru sebeopravy (viz výš).
+  t = stripDeliberation(t);
+  if (!t) return t;
 
   // Markery, které se v normálním českém komentáři NIKDY nevyskytují a značí,
   // že model komentuje sám sebe / restartuje. ("přepíšu" / "udělám přepis"

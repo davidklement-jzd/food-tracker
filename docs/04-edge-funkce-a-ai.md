@@ -41,6 +41,12 @@ body: {
   Permanentní (400/401/403/404) se neopakují (404 = vyřazený model).
 - Ošetření `stop_reason` (odmítnutí / max_tokens / prázdno). `stripAiReasoning()` + `trimToLastSentence()`
   čistí výstup; **tvrdý strop 250 znaků**.
+- **`stripDeliberation()`** (volá se z `stripAiReasoning`) vyhazuje věty, kde model přemýšlí nahlas
+  bez markeru sebeopravy — citace pravidla ze zadání, poznámka pro sebe v infinitivu, plán, co napíše
+  („Přemýšlím, co má smysl zmínit."), meta o délce („jedna věta za zmínku"). Řeže **kdekoliv v textu**
+  i uvnitř věty (od první meta-vsuvky za čárkou/pomlčkou dál). Když ze zbytku zbyde míň než 20 znaků,
+  vrací prázdno → komentář se zaloguje jako `empty` a nevznikne; ukázat klientce myšlenkový pochod
+  je horší než chybějící komentář. Každé ořezání jde do logu (`[ai] uvažování v komentáři, ořezáno:`).
 
 ### CORS
 `corsHeadersFor(req)` echoes `Origin`, pokud je v allow-listu (`http://localhost:5173`,
