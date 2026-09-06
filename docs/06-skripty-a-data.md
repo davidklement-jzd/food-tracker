@@ -96,3 +96,17 @@ s AI komentáři přes edge funkce. Skill dokumentuji pro úplnost — pro rebui
 
 `.claude/` (netrackovaný, lokální): `launch.json` (dev server), `settings.local.json` (povolené
 příkazy), `style-feedback-notes.md` (~15 KB poznámek ke stylu), `worktrees/`.
+
+---
+
+## AI komentáře — audit a A/B test modelů (přidáno 2026-09-06)
+
+| Skript | Co dělá | Potřebuje |
+|---|---|---|
+| `audit-comments.mjs` | Stáhne komentáře za období (`--from`, `--to`, volitelně `--client "Jméno"`), spočítá metriky stylu (bilance bílkovin 2× za den, výhledy do dalších jídel, procenta, čísla, hlášky, zakázaná slova, „se tvarohem", 3. osoba, ženský rod…), vypíše doslova opakované věty a ukázky porušení. `--dump` zapíše `tmp/audit-readable.txt` (den, jídla, komentáře) pro ruční čtení. Nic nezapisuje. | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` |
+| `model-ab-test.mjs` | Slepý A/B test dvou modelů na dnech z `tmp/ab-dataset.json` (export vybraných dnů). Používá stejný style guide a sestavení promptu jako edge funkce (načítá `_shared/http.ts` přes Node type-stripping se shimem `Deno`). Výstup `tmp/ab-results.json` (A/B), `tmp/ab-key.json` (klíč), `tmp/ab-usage.json` (tokeny, cena). `--dry` jen sestaví prompty. Nic nezapisuje do DB. | `ANTHROPIC_API_KEY`; dataset v `tmp/` |
+
+Typický postup po změně guide nebo modelu: `audit-comments.mjs --from <den> --to <den> --dump`, pak přečíst
+`tmp/audit-readable.txt` jen u dnů, kde metriky něco ukázaly. Hlavní číslo je „dny s bilancí bílkovin
+ve 2+ komentářích", cíl 0. Podrobný audit z 6. 9. 2026 (30. 8.–5. 9., 740 komentářů) vedl k přechodu na
+Opus 5 a ke kontextu z minulých dnů — viz `docs/04`.
