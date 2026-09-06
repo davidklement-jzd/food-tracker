@@ -92,7 +92,7 @@ Kandidát na smazání; nepleť se tím při orientaci.
 ## AI / edge funkce
 
 ### 17. Model se čte z env, ne hardcoded
-`_shared/http.ts`: `AI_MODEL = env ?? "claude-sonnet-4-6"`. (Paměťová poznámka „natvrdo na 4 místech"
+`_shared/http.ts`: `AI_MODEL = env ?? "claude-opus-5"` (od 2026-09-06; dřív `claude-sonnet-4-6`). (Paměťová poznámka „natvrdo na 4 místech"
 je zastaralá.) Vyřazený model → 404 = permanent (neopakuje se) → tiché „0 komentářů". Fix: změň
 secret `AI_MODEL` na aktuální ID.
 

@@ -4,9 +4,14 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 // ===== AI konfigurace — JEDINÝ zdroj pravdy pro model a parametry =====
 // Model přes env, ať jde měnit bez deploye kódu (a ať tu není natvrdo na 4
 // místech). Když bude model vyřazen, stačí přenastavit AI_MODEL secret.
-export const AI_MODEL = Deno.env.get("AI_MODEL") ?? "claude-sonnet-4-6";
-// 250 znaků češtiny ≈ 90–130 tokenů; 220 dává rezervu na dokončení věty.
-export const AI_MAX_TOKENS = Number(Deno.env.get("AI_MAX_TOKENS") ?? "220");
+// Od 2026-09-06 Opus 5 (slepý A/B test 30 dnů vs. Sonnet 5 a Sonnet 4.6:
+// jediný, který drží bilanci bílkovin 1× za den, nepíše výhledy do dalších
+// jídel a nedělá tvrdé jazykové chyby). Rollback = secret AI_MODEL=claude-sonnet-4-6.
+export const AI_MODEL = Deno.env.get("AI_MODEL") ?? "claude-opus-5";
+// 250 znaků češtiny ≈ 110–150 tokenů na tokenizéru Opus 5 (o ~1/4 hustší než
+// Sonnet 4.6); 300 dává rezervu na dokončení věty. Tvrdý strop 250 znaků
+// zůstává v čištění výstupu.
+export const AI_MAX_TOKENS = Number(Deno.env.get("AI_MAX_TOKENS") ?? "300");
 const AI_TIMEOUT_MS = 30_000;
 const AI_MAX_RETRIES = 2; // celkem tedy až 3 pokusy na přechodné chyby
 
@@ -411,6 +416,14 @@ export interface DayEntry {
   group_name?: unknown;
 }
 
+// Komentář z dřívějšího dne téže klientky - jen text, ať model neopakuje
+// doslova stejné věty a rady napříč dny (jídla z těch dnů nevidí, nemá je hodnotit).
+export interface PriorComment {
+  date: string; // ISO YYYY-MM-DD
+  mealId: string;
+  text: string;
+}
+
 export interface BuildDayContextInput {
   clientName: string;
   goalKcal: number;
@@ -425,6 +438,8 @@ export interface BuildDayContextInput {
   // Textová poznámka klientky ke KOMENTOVANÉMU jídlu (může obsahovat způsob
   // přípravy – olej/tuk/troubu/vodu). Volitelné, prázdné když poznámka není.
   currentMealNote?: string;
+  // Komentáře z předchozích dnů (viz fetchPriorDayComments). Volitelné.
+  priorComments?: PriorComment[];
 }
 
 // Deterministická detekce alkoholu v položkách jídla. Slouží jen jako pojistka
@@ -449,7 +464,7 @@ function hasAlcohol(list: DayEntry[]): boolean {
 // with full-day context and previously written comments so the AI doesn't
 // repeat itself and can reference earlier meals.
 export function buildDayContextPrompt(input: BuildDayContextInput): string {
-  const { clientName, goalKcal, goalProtein, goalCarbs, goalFat, goalFiber, entries, comments, currentMealId, currentMealNote } = input;
+  const { clientName, goalKcal, goalProtein, goalCarbs, goalFat, goalFiber, entries, comments, currentMealId, currentMealNote, priorComments } = input;
 
   const byMeal: Record<string, DayEntry[]> = {};
   for (const e of entries) {
@@ -611,6 +626,28 @@ export function buildDayContextPrompt(input: BuildDayContextInput): string {
 
   sections.push("");
 
+  // Komentáře z předchozích dnů: model jinak nevidí, co klientce psal včera,
+  // a stejnou hlášku („Tvarůžky jsou naprostá jednička") jí pošle tři dny po
+  // sobě. Jen texty - jídla těch dnů sem nepatří, nemá je hodnotit.
+  if (priorComments && priorComments.length > 0) {
+    const fmtDate = (iso: string) => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+      return m ? `${Number(m[3])}. ${Number(m[2])}.` : iso;
+    };
+    sections.push(
+      `Vaše komentáře této klientce z předchozích dnů (jen pro kontext - ty dny jsou vyřízené, nehodnoťte je):`,
+    );
+    for (const pc of priorComments.slice(0, 12)) {
+      const text = sanitizePromptField(pc.text, 220);
+      if (!text) continue;
+      sections.push(`  - ${fmtDate(pc.date)}, ${MEAL_LABELS[pc.mealId] || pc.mealId}: "${text}"`);
+    }
+    sections.push(
+      `⚠️ Nepoužijte doslova stejnou větu ani stejnou hlášku, která výše už padla (tvarůžky, vývar, vajíčka, ovoce, brambory apod.), a neopakujte stejnou radu. Řekněte to jinými slovy, nebo u dnešního jídla vyberte jinou myšlenku.`,
+    );
+    sections.push("");
+  }
+
   // Deterministická pojistka na „přepis jen jednou za den": pokud už některý
   // dřívější komentář dne o přepisu psal, model se na to nesmí spolehnout, že si
   // toho sám všimne — dostane tvrdý zákaz. „Přepis" je vyhrazen výhradně pro
@@ -660,6 +697,52 @@ export function buildDayContextPrompt(input: BuildDayContextInput): string {
   );
 
   return sections.join("\n");
+}
+
+// Načte komentáře (AI i trenérovy) téže klientky z posledních `days`
+// zapsaných dnů PŘED isoDate. Vrací je chronologicky (nejstarší první),
+// v pořadí jídel. Chyba dotazu = prázdné pole - kontext z minulých dnů je
+// bonus, nesmí shodit generování. Vyžaduje admin (service_role) klienta.
+export async function fetchPriorDayComments(
+  admin: any,
+  userId: string,
+  isoDate: string,
+  days = 2,
+): Promise<PriorComment[]> {
+  try {
+    const { data: prevDays, error: e1 } = await admin
+      .from("diary_days")
+      .select("id, date")
+      .eq("user_id", userId)
+      .lt("date", isoDate)
+      .order("date", { ascending: false })
+      .limit(days);
+    if (e1 || !prevDays || prevDays.length === 0) return [];
+    const dateById: Record<string, string> = {};
+    for (const d of prevDays) dateById[d.id] = d.date;
+    const { data: rows, error: e2 } = await admin
+      .from("trainer_comments")
+      .select("day_id, meal_id, comment_text")
+      .in("day_id", prevDays.map((d: { id: string }) => d.id));
+    if (e2 || !rows) return [];
+    const mealIdx = (m: string) => {
+      const i = MEAL_ORDER.indexOf(m as (typeof MEAL_ORDER)[number]);
+      return i === -1 ? 99 : i;
+    };
+    return rows
+      .filter((r: { comment_text?: string }) => typeof r.comment_text === "string" && r.comment_text.trim())
+      .map((r: { day_id: string; meal_id: string; comment_text: string }) => ({
+        date: dateById[r.day_id],
+        mealId: r.meal_id,
+        text: r.comment_text,
+      }))
+      .sort((a: PriorComment, b: PriorComment) =>
+        a.date === b.date ? mealIdx(a.mealId) - mealIdx(b.mealId) : a.date.localeCompare(b.date)
+      );
+  } catch (err) {
+    console.warn("fetchPriorDayComments failed, continuing without prior context:", err);
+    return [];
+  }
 }
 
 const GOAL_KEYS = ["goal_kcal", "goal_protein", "goal_carbs", "goal_fat", "goal_fiber"] as const;
@@ -735,6 +818,11 @@ async function callAnthropicOnce(
       body: JSON.stringify({
         model: AI_MODEL,
         max_tokens: AI_MAX_TOKENS,
+        // Opus 5 / Sonnet 5 mají přemýšlení zapnuté ve výchozím stavu. Pro
+        // 250znakový komentář ho nechceme: tokeny přemýšlení se účtují jako
+        // výstup a počítají se do max_tokens, takže by komentář ani nevznikl.
+        // Sonnet 4.6 hodnotu "disabled" přijme taky (rollback bez změny kódu).
+        thinking: { type: "disabled" },
         system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: userPrompt }],
       }),
@@ -793,6 +881,9 @@ export async function callAnthropic(
       for (const block of body?.content ?? []) {
         if (block?.type === "text" && typeof block.text === "string") rawText += block.text;
       }
+      // S vypnutým přemýšlením může Opus 5 výjimečně propustit <thinking> tagy
+      // do textu - vyhodit i s obsahem, klientka nesmí vidět postup.
+      rawText = rawText.replace(/<thinking>[\s\S]*?(<\/thinking>|$)/gi, "").replace(/<\/?thinking>/gi, "").trim();
       let cleaned = normalizeDashes(stripAiReasoning(normalizeForeignScript(rawText))).slice(0, 250);
       if (stopReason === "max_tokens" && cleaned) cleaned = trimToLastSentence(cleaned);
 

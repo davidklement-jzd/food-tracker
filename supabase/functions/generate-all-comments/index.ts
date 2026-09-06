@@ -4,6 +4,7 @@ import {
   COMMENTABLE_MEAL_ORDER,
   corsHeadersFor,
   enforceAiDailyLimit,
+  fetchPriorDayComments,
   generateAndSaveComment,
   jsonResponse,
   requireTrainer,
@@ -113,7 +114,11 @@ Deno.serve(async (req) => {
       }
 
       // Cíle pro daný DEN — historizovaně z goal_history; fallback profile.
-      const historyGoals = await resolveGoalsForDate(admin, client.id, date);
+      // + komentáře z 2 předchozích dnů (jednou na klientku, platí pro všechna jídla).
+      const [historyGoals, priorComments] = await Promise.all([
+        resolveGoalsForDate(admin, client.id, date),
+        fetchPriorDayComments(admin, client.id, date, 2),
+      ]);
       const dayGoalKcal = safeNumber(historyGoals.goal_kcal ?? client.goal_kcal, 2000);
       const dayGoalProtein = safeNumber(historyGoals.goal_protein ?? client.goal_protein, 100);
       const dayGoalCarbs = safeNumber(historyGoals.goal_carbs ?? client.goal_carbs, 220);
@@ -145,6 +150,7 @@ Deno.serve(async (req) => {
           comments: commentsMap,
           currentMealId: mealId,
           currentMealNote: notesMap[mealId] || "",
+          priorComments,
         });
 
         const result = await generateAndSaveComment({

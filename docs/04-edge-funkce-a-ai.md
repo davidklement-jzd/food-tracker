@@ -14,14 +14,14 @@ configu není → default `verify_jwt = true`, je to server-to-server webhook.)
 
 ### AI konfigurace (jediný zdroj pravdy)
 ```
-AI_MODEL      = Deno.env.get("AI_MODEL")      ?? "claude-sonnet-4-6"
-AI_MAX_TOKENS = Deno.env.get("AI_MAX_TOKENS") ?? "220"
+AI_MODEL      = Deno.env.get("AI_MODEL")      ?? "claude-opus-5"   // od 2026-09-06, dřív claude-sonnet-4-6
+AI_MAX_TOKENS = Deno.env.get("AI_MAX_TOKENS") ?? "300"             // dřív 220; tvrdý strop 250 znaků zůstává
 AI_TIMEOUT_MS = 30000
 AI_MAX_RETRIES = 2   // až 3 pokusy
 ```
 
 > **⚠️ Oprava paměťové poznámky:** Model **NENÍ** natvrdo zapsaný na čtyřech místech. Čte se z env
-> `AI_MODEL` s **defaultním literálem `"claude-sonnet-4-6"`**. Když model vyřadí, funkce dostane 404,
+> `AI_MODEL` s **defaultním literálem `"claude-opus-5"`** (do 2026-09-06 `claude-sonnet-4-6`). Když model vyřadí, funkce dostane 404,
 > který je klasifikovaný jako `permanent` (neopakuje se) → generování tiše vrátí „0 komentářů".
 > Řešení při výpadku modelu: nastavit env `AI_MODEL` na aktuální ID a redeploynout (nebo jen změnit secret).
 
@@ -32,10 +32,16 @@ headers: x-api-key: <ANTHROPIC_API_KEY>, anthropic-version: 2023-06-01
 body: {
   model: AI_MODEL,
   max_tokens: AI_MAX_TOKENS,
+  thinking: { type: "disabled" },   // Opus 5 / Sonnet 5 by jinak přemýšlely a tokeny by sežraly max_tokens
   system: [{ type:"text", text: SYSTEM_PROMPT, cache_control:{ type:"ephemeral" } }],
   messages: [{ role:"user", content: userPrompt }]
 }
 ```
+- **Volba modelu (2026-09-06):** Opus 5 vybrán slepým A/B testem na 30 dnech (128 komentářů na model,
+  skript `scripts/model-ab-test.mjs`, data v `tmp/`). Proti Sonnet 5 a Sonnet 4.6 jako jediný drží bilanci
+  bílkovin 1× za den, nepíše výhledy do dalších jídel a neudělal žádnou tvrdou jazykovou chybu. Cena ≈ 0,019 $
+  za komentář (Sonnet 4.6 ≈ 0,009 $). `thinking: disabled` je nutné - Opus 5 i Sonnet 5 jinak přemýšlejí
+  a tokeny přemýšlení se počítají do `max_tokens`. Opus 5 nepřijímá `temperature` (400), neposílat.
 - **Prompt caching** na systémovém promptu (`cache_control: ephemeral`) — persona je velká, cache šetří tokeny.
 - **Retry**: transient chyby (429/5xx/síť/timeout) → exponenciální backoff `500*2^attempt`.
   Permanentní (400/401/403/404) se neopakují (404 = vyřazený model).
@@ -71,7 +77,11 @@ Při dosažení vrací 429. Při chybě dotazu **fail-open** (raději pustí ne�
   client_name?, client_goals? }`.
 - **Čte (service role):** `diary_days` řádek, všechny `diary_entries` dne (vč. `group_id/group_name`),
   `trainer_comments`, `meal_notes` pro dané jídlo. Cíle dne přes `resolveGoalsForDate` (goal_history)
-  → fallback `client_goals` → tvrdé defaulty (2000/100/220/80/30).
+  → fallback `client_goals` → tvrdé defaulty (2000/100/220/80/30). Od 2026-09-06 navíc
+  `fetchPriorDayComments(admin, userId, date, 2)`: komentáře (AI i trenérovy) téže klientky ze **2 posledních
+  zapsaných dnů před `date`** → do promptu jako blok „Vaše komentáře této klientce z předchozích dnů" + zákaz
+  opakovat doslova stejnou větu/hlášku/radu. Jen texty, jídla těch dnů model nevidí. Max 12 komentářů,
+  každý oříznut na 220 znaků (~300 tokenů navíc na komentář). Chyba dotazu → prázdné pole, generování běží dál.
 - **Zapisuje:** upsert `trainer_comments` (`author:'ai'`, `onConflict day_id,meal_id`) + insert
   `ai_comment_log` (i při selhání). Vrací `{comment, id, tokens}` nebo 502.
 - **Env:** `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
@@ -140,8 +150,8 @@ Tyto **NEJSOU v gitu** a musí se nastavit v **Supabase → Edge Functions → S
 | `SUPABASE_ANON_KEY` | requireTrainer | ano |
 | `SUPABASE_SERVICE_ROLE_KEY` | všechny (obchází RLS) | ano |
 | `RESEND_API_KEY` | notify-new-client | jen pro e-mail |
-| `AI_MODEL` | http.ts | ne (default `claude-sonnet-4-6`) |
-| `AI_MAX_TOKENS` | http.ts | ne (default 220) |
+| `AI_MODEL` | http.ts | ne (default `claude-opus-5`; rollback `claude-sonnet-4-6`) |
+| `AI_MAX_TOKENS` | http.ts | ne (default 300) |
 | `AI_DAILY_LIMIT` | rate limit | ne (default 300) |
 | `ALLOWED_ORIGINS` | CORS | ne (produkční origin appky) |
 | `NOTIFY_WEBHOOK_SECRET` | notify-new-client | doporučeno (jinak fail-open) |
