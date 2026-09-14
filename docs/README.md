@@ -6,7 +6,7 @@
 > a jak ji nasadit.
 
 **Snapshot k datu:** 2026-08-02 · stav gitu: větev `main`, poslední commit `74da73d`.
-Pokud čteš tenhle text mnohem později, ber čísla (30 migrací, model ID, verze balíčků) jako stav
+Pokud čteš tenhle text mnohem později, ber čísla (31 migrací, model ID, verze balíčků) jako stav
 k tomuto datu a ověř je proti aktuálnímu kódu.
 
 ---

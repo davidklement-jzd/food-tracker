@@ -1,7 +1,7 @@
 # 02 — Datový model (Postgres / Supabase)
 
-Vše ve schématu `public`. **RLS je zapnuté na všech tabulkách.** Schéma je definované 30 migracemi
-v `supabase/migrations/001…030` — ne v žádném samostatném SQL dumpu. Migrace se pouští **v pořadí**.
+Vše ve schématu `public`. **RLS je zapnuté na všech tabulkách.** Schéma je definované 31 migracemi
+v `supabase/migrations/001…031` — ne v žádném samostatném SQL dumpu. Migrace se pouští **v pořadí**.
 
 Autorizaci řeší RLS + helper `public.is_trainer()` (SECURITY DEFINER, vrací true, pokud má volající
 v `profiles` řádek s `role='trainer'`; jako DEFINER obchází RLS na `profiles`, aby nevznikla rekurze).
@@ -286,7 +286,7 @@ Formát: **kdo** může **co** a za jaké podmínky. „trenér" = `is_trainer()
 
 - **profiles** — klient SELECT/UPDATE vlastní (`auth.uid()=id`); trenér SELECT/UPDATE všechny. Bez INSERT (řádky tvoří trigger). Trigger 028 navíc pustí změnu `role`/`status` jen trenérovi.
 - **diary_days** — klient `for all` kde `user_id=auth.uid()`; trenér SELECT všechny + INSERT.
-- **diary_entries** — klient `for all` přes vlastnictví rodičovského dne; trenér SELECT/INSERT/UPDATE/DELETE.
+- **diary_entries** — klient SELECT přes vlastnictví rodičovského dne; INSERT/UPDATE/DELETE stejně, ale **jen kde `meal_id <> 'supplements'`** (031 — „Kalorický dluh" zapisuje a maže jen trenér; WITH CHECK u UPDATE brání i přesunu řádku do supplements); trenér SELECT/INSERT/UPDATE/DELETE.
 - **meal_notes** — klient `for all` přes den; trenér SELECT/INSERT/UPDATE/DELETE.
 - **trainer_comments** — trenér `for all`; klient SELECT kde rodičovský den patří jemu. (Zápis jen trenér/AI.)
 - **ai_comment_log** — jen trenér SELECT. Zápis dělají edge funkce přes service role (obchází RLS).
@@ -318,14 +318,14 @@ v `public` — RLS sama o sobě nestačí, tabulka musí být roli `authenticate
 
 ## Pořadí a závislosti migrací
 
-Pouštět **striktně 001 → 030**. Kritické závislosti:
+Pouštět **striktně 001 → 031**. Kritické závislosti:
 
 1. **001** šest základních tabulek. **002** `is_trainer()` (potřebují ho skoro všechny pozdější politiky) + zapne RLS. **003** signup trigger.
 2. **004/005/006** váha, cíle, aktivity. **007** alter aktivit. **008** trenérské write politiky (potřebují `is_trainer`). **009/010** alter diary/profiles.
 3. **011** `foods` + `pg_trgm`. **012** první `search_foods`. **013** `unaccent` + `immutable_unaccent` + index — **tvrdá závislost pro 014, 015, 020**. **015** approval + FK `diary_entries.food_id` + foods RLS + redefinice `search_foods`. **016/017** unit / `get_recent_foods`.
 4. **018** `invite_codes`. **019** přepis `handle_new_user()` na povinný invite (potřebuje 018). **020** finální `search_foods` (potřebuje 013).
 5. **021** šablony. **022** návrhy porcí (FK na foods). **023** rozšíří `goal_history`. **024** trenérský zápis do goal_history. **025** `profiles.status`.
-6. **026** oznámení (+ první explicitní granty). **027** realtime publikace. **028** ochranný trigger na profiles (potřebuje `status` z 025). **029** doplnění grantů + zpřísnění invite_codes. **030** `group_id`/`group_name` na diary_entries.
+6. **026** oznámení (+ první explicitní granty). **027** realtime publikace. **028** ochranný trigger na profiles (potřebuje `status` z 025). **029** doplnění grantů + zpřísnění invite_codes. **030** `group_id`/`group_name` na diary_entries. **031** rozdělí klientskou politiku na diary_entries: zápis/mazání mimo `supplements` (potřebuje 002 a trenérské politiky z 008, jinak by trenér do sekce nemohl).
 
 **Historická past (už vyřešená):** kdysi existovaly dva soubory se stejným číslem `013_*`
 (`search_foods_ranking` + `unaccent_search`), což rozbíjelo `db reset`. Sloučeny do jediného

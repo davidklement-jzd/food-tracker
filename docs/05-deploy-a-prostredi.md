@@ -109,7 +109,7 @@ npm run dev        # Vite dev server na :5173
 | Věc | Kde |
 |---|---|
 | Zdroják frontendu | `src/` (git) |
-| Schema DB | `supabase/migrations/001…030` (git) |
+| Schema DB | `supabase/migrations/001…031` (git) |
 | Edge funkce | `supabase/functions/` (git) |
 | Persona AI | `supabase/functions/_shared/styleGuide.ts` (git) |
 | Seed data potravin | `data/*.jsonl`, `data/*.tsv` (git, čtyři curated) + reprodukovatelné dumpy (gitignored) |

@@ -94,7 +94,7 @@ Zobrazí se v `recoveryMode`. Validace ≥6 znaků + shoda, `updatePassword`, pa
 |---|---|
 | `SearchBar` | Header rychlé hledání (klientky); debounce, přidá rovnou do **breakfast**. |
 | `DailySummary` | Sidebar: kruh kcal + makro bary + tekutiny (ml); barvy 90–110 % zelená / >110 % červená / jinak oranžová. |
-| `MealSection` | Seznam položek jednoho jídla; inline edit gramáže/porce, poznámka, kopírování/uložení šablony, sbalitelná uložená jídla, zobrazení trenérského komentáře. |
+| `MealSection` | Seznam položek jednoho jídla; inline edit gramáže/porce, poznámka, kopírování/uložení šablony, sbalitelná uložená jídla, zobrazení trenérského komentáře. Prop `readOnly` (klientka × `supplements`): bez „+", křížků a editace gramáže, jen poznámka + hláška „Tuto sekci vyplňuje trenér". |
 | `ActivitySection` | Seznam aktivit s inline editem minut (přepočet kcal). |
 | `ActivitySearchModal` | Hledání ve statickém `ACTIVITIES_DB`, výběr délky. |
 | `FoodSearchModal` | Hlavní modal přidání potraviny: hledání, recents, šablony, porce, vytvoření nové, sken kódu. |

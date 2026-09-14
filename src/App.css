@@ -1168,6 +1168,13 @@ html, body {
 }
 
 /* Meal note preview (read-only) */
+/* Sekce, kterou vyplňuje jen trenér (Kalorický dluh u klientky) */
+.meal-locked-hint {
+  padding: 4px 16px 8px;
+  font-size: var(--text-12);
+  color: #999;
+}
+
 .meal-note-preview {
   padding: 8px 16px 10px;
   border-top: 1px solid #f0f0f0;

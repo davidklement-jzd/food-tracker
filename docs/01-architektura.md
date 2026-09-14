@@ -113,7 +113,7 @@ food-tracker/
 │   ├── utils/               # foodSearch, barcodeLookup, dates, week
 │   └── data/                # activities.js (živé), czechFoods.js (mrtvý kód)
 ├── supabase/
-│   ├── migrations/          # 001–030 (schema + RLS + RPC + granty) → 02-datovy-model.md
+│   ├── migrations/          # 001–031 (schema + RLS + RPC + granty) → 02-datovy-model.md
 │   ├── functions/           # edge funkce (Deno) → 04-edge-funkce-a-ai.md
 │   │   ├── _shared/         # http.ts (AI + auth + CORS), styleGuide.ts (persona)
 │   │   ├── generate-comment/

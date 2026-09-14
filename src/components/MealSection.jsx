@@ -5,7 +5,9 @@ function round(val) {
   return Math.round(val * 10) / 10;
 }
 
-export default function MealSection({ meal, entries, onRemove, onToggleAdd, onCopyMeal, onSaveTemplate, note, onNoteChange, onUpdateEntry, trainerComment, ownerId }) {
+// readOnly: sekci vyplňuje jen trenér (Kalorický dluh u klientky) — položky se
+// jen zobrazí, bez přidávání, mazání a úpravy gramáže. Poznámka zůstává.
+export default function MealSection({ meal, entries, onRemove, onToggleAdd, onCopyMeal, onSaveTemplate, note, onNoteChange, onUpdateEntry, trainerComment, ownerId, readOnly = false }) {
   const totals = entries.reduce(
     (acc, e) => ({
       kcal: acc.kcal + (e.kcal || 0),
@@ -173,6 +175,10 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, onCo
               </select>
               <button className="entry-edit-confirm" onClick={() => commitEdit(entry)}>✓</button>
             </span>
+          ) : readOnly ? (
+            <span className="entry-amount">
+              {entry.displayAmount || `${entry.grams}${entry.unit || 'g'}`}
+            </span>
           ) : (
             <span
               className="entry-amount clickable"
@@ -190,13 +196,15 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, onCo
           <span className="macro-fat">{entry.fat}g T</span>
           <span className="macro-fiber">{entry.fiber || 0}g V</span>
         </div>
-        <button
-          className="entry-remove"
-          onClick={() => onRemove(entry.id)}
-          title="Odebrat"
-        >
-          ×
-        </button>
+        {!readOnly && (
+          <button
+            className="entry-remove"
+            onClick={() => onRemove(entry.id)}
+            title="Odebrat"
+          >
+            ×
+          </button>
+        )}
       </div>
     );
   }
@@ -229,13 +237,15 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, onCo
             <span className="macro-fat">{Math.round(g.fat)}g T</span>
             <span className="macro-fiber">{Math.round(g.fiber)}g V</span>
           </div>
-          <button
-            className="entry-remove"
-            onClick={(e) => { e.stopPropagation(); removeGroup(unit.entries); }}
-            title="Odebrat celé jídlo"
-          >
-            ×
-          </button>
+          {!readOnly && (
+            <button
+              className="entry-remove"
+              onClick={(e) => { e.stopPropagation(); removeGroup(unit.entries); }}
+              title="Odebrat celé jídlo"
+            >
+              ×
+            </button>
+          )}
         </div>
         {isExpanded && (
           <div className="meal-group-items">
@@ -269,23 +279,28 @@ export default function MealSection({ meal, entries, onRemove, onToggleAdd, onCo
           >
             📝
           </button>
-          {onCopyMeal && meal.id !== 'supplements' && (
+          {!readOnly && onCopyMeal && meal.id !== 'supplements' && (
             <button className="meal-copy-btn" onClick={onCopyMeal} title="Kopírovat z jiného dne">
               🔄
             </button>
           )}
-          {onSaveTemplate && entries.length >= 2 && meal.id !== 'supplements' && (
+          {!readOnly && onSaveTemplate && entries.length >= 2 && meal.id !== 'supplements' && (
             <button className="meal-copy-btn" onClick={() => onSaveTemplate(meal, entries)} title="Uložit jako šablonu">
               💾
             </button>
           )}
-          <button className="meal-add-btn" onClick={onToggleAdd} title="Přidat jídlo" aria-label="Přidat jídlo">
-            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-          </button>
+          {!readOnly && (
+            <button className="meal-add-btn" onClick={onToggleAdd} title="Přidat jídlo" aria-label="Přidat jídlo">
+              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
+      {readOnly && (
+        <div className="meal-locked-hint">🔒 Tuto sekci vyplňuje trenér.</div>
+      )}
       {entries.length > 0 && (
         <div className="meal-entries">
           {renderUnits.map((unit) =>

@@ -32,7 +32,7 @@ supabase link --project-ref <TVŮJ_REF>   # nový nebo uxffnpajkhcvtwzsmrcl
 ```bash
 supabase db push
 ```
-Spustí `supabase/migrations/001…030` **v pořadí**. Pořadí a závislosti viz
+Spustí `supabase/migrations/001…031` **v pořadí**. Pořadí a závislosti viz
 [02-datovy-model.md](02-datovy-model.md#pořadí-a-závislosti-migrací). Kontrola po aplikaci:
 - existuje 16 tabulek, RLS zapnuté na všech;
 - RPC `is_trainer`, `search_foods`, `get_recent_foods`, `immutable_unaccent`;

@@ -86,6 +86,9 @@ Kandidát na smazání; nepleť se tím při orientaci.
 ### 16. `supplements` = „Kalorický dluh", ne jídlo
 `meal_id='supplements'` je ruční účetní sekce. **AI komentáře ji přeskakují**
 (`COMMENTABLE_MEAL_IDS` ji nezahrnuje), „Okomentovat celý den" taky.
+**Zapisuje a maže ji jen trenér** (od 031): klientka má v UI `readOnly` sekci a RLS jí
+INSERT/UPDATE/DELETE na `supplements` odmítne (`new row violates row-level security policy`).
+Trenérův vlastní deník omezený není (prochází přes `is_trainer()`).
 
 ---
 

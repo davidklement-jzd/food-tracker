@@ -17,8 +17,8 @@ Role je uložená v `profiles.role` a nabývá dvou hodnot:
 
 ### Klientka — `role = 'client'`
 - Zapisuje jídla do deníku po jídlech: **snídaně, dopolední svačina, oběd, odpolední svačina,
-  večeře** a zvláštní sekce **„Kalorický dluh"** (ruční účetní položka, ne reálné jídlo — interně
-  `meal_id = 'supplements'`).
+  večeře**. Zvláštní sekci **„Kalorický dluh"** (ruční účetní položka, ne reálné jídlo — interně
+  `meal_id = 'supplements'`) jen vidí — vyplňuje a maže ji trenér.
 - Hledá potraviny v databázi, **skenuje čárové kódy** (kamera), vytváří vlastní potraviny.
 - Ukládá si **oblíbená jídla** („Moje jídla" = šablony více položek pod jedním názvem).
 - Sleduje **váhu**, **kalorie**, **makra** (bílkoviny/sacharidy/tuky/vláknina) a **aktivity**.

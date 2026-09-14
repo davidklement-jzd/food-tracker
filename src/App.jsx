@@ -376,6 +376,7 @@ export default function App() {
                   onNoteChange={(text) => updateNote(meal.id, text)}
                   trainerComment={comments[meal.id]}
                   ownerId={user?.id}
+                  readOnly={!isTrainer && meal.id === 'supplements'}
                 />
               ))}
 
