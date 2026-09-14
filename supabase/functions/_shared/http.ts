@@ -626,16 +626,16 @@ export function buildDayContextPrompt(input: BuildDayContextInput): string {
 
   sections.push("");
 
-  // Komentáře z předchozích dnů: model jinak nevidí, co klientce psal včera,
-  // a stejnou hlášku („Tvarůžky jsou naprostá jednička") jí pošle tři dny po
-  // sobě. Jen texty - jídla těch dnů sem nepatří, nemá je hodnotit.
+  // Komentáře z předchozího zapsaného dne: model jinak nevidí, co klientce psal
+  // včera, a stejnou hlášku („Tvarůžky jsou naprostá jednička") jí pošle dva dny
+  // po sobě. Jen texty - jídla toho dne sem nepatří, nemá je hodnotit.
   if (priorComments && priorComments.length > 0) {
     const fmtDate = (iso: string) => {
       const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
       return m ? `${Number(m[3])}. ${Number(m[2])}.` : iso;
     };
     sections.push(
-      `Vaše komentáře této klientce z předchozích dnů (jen pro kontext - ty dny jsou vyřízené, nehodnoťte je):`,
+      `Vaše komentáře této klientce z předchozího dne (jen pro kontext - ten den je vyřízený, nehodnoťte ho):`,
     );
     for (const pc of priorComments.slice(0, 12)) {
       const text = sanitizePromptField(pc.text, 220);
@@ -699,7 +699,7 @@ export function buildDayContextPrompt(input: BuildDayContextInput): string {
   return sections.join("\n");
 }
 
-// Načte komentáře (AI i trenérovy) téže klientky z posledních `days`
+// Načte komentáře (AI i trenérovy) téže klientky z posledních `days` (výchozí 1)
 // zapsaných dnů PŘED isoDate. Vrací je chronologicky (nejstarší první),
 // v pořadí jídel. Chyba dotazu = prázdné pole - kontext z minulých dnů je
 // bonus, nesmí shodit generování. Vyžaduje admin (service_role) klienta.
@@ -707,7 +707,7 @@ export async function fetchPriorDayComments(
   admin: any,
   userId: string,
   isoDate: string,
-  days = 2,
+  days = 1,
 ): Promise<PriorComment[]> {
   try {
     const { data: prevDays, error: e1 } = await admin

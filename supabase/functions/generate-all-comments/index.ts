@@ -114,10 +114,10 @@ Deno.serve(async (req) => {
       }
 
       // Cíle pro daný DEN — historizovaně z goal_history; fallback profile.
-      // + komentáře z 2 předchozích dnů (jednou na klientku, platí pro všechna jídla).
+      // + komentáře z předchozího zapsaného dne (jednou na klientku, platí pro všechna jídla).
       const [historyGoals, priorComments] = await Promise.all([
         resolveGoalsForDate(admin, client.id, date),
-        fetchPriorDayComments(admin, client.id, date, 2),
+        fetchPriorDayComments(admin, client.id, date, 1),
       ]);
       const dayGoalKcal = safeNumber(historyGoals.goal_kcal ?? client.goal_kcal, 2000);
       const dayGoalProtein = safeNumber(historyGoals.goal_protein ?? client.goal_protein, 100);

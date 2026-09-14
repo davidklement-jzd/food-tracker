@@ -78,8 +78,8 @@ Při dosažení vrací 429. Při chybě dotazu **fail-open** (raději pustí ne�
 - **Čte (service role):** `diary_days` řádek, všechny `diary_entries` dne (vč. `group_id/group_name`),
   `trainer_comments`, `meal_notes` pro dané jídlo. Cíle dne přes `resolveGoalsForDate` (goal_history)
   → fallback `client_goals` → tvrdé defaulty (2000/100/220/80/30). Od 2026-09-06 navíc
-  `fetchPriorDayComments(admin, userId, date, 2)`: komentáře (AI i trenérovy) téže klientky ze **2 posledních
-  zapsaných dnů před `date`** → do promptu jako blok „Vaše komentáře této klientce z předchozích dnů" + zákaz
+  `fetchPriorDayComments(admin, userId, date, 1)`: komentáře (AI i trenérovy) téže klientky z **posledního
+  zapsaného dne před `date`** (do 2026-09-14 to byly 2 dny) → do promptu jako blok „Vaše komentáře této klientce z předchozího dne" + zákaz
   opakovat doslova stejnou větu/hlášku/radu. Jen texty, jídla těch dnů model nevidí. Max 12 komentářů,
   každý oříznut na 220 znaků (~300 tokenů navíc na komentář). Chyba dotazu → prázdné pole, generování běží dál.
 - **Zapisuje:** upsert `trainer_comments` (`author:'ai'`, `onConflict day_id,meal_id`) + insert

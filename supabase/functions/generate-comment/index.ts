@@ -98,8 +98,8 @@ Deno.serve(async (req) => {
       : {};
     const [historyGoals, priorComments] = await Promise.all([
       resolveGoalsForDate(admin, dayRes.data.user_id, dayRes.data.date),
-      // Komentáře z 2 předchozích dnů - ať model neopakuje doslova stejné věty.
-      fetchPriorDayComments(admin, dayRes.data.user_id, dayRes.data.date, 2),
+      // Komentáře z předchozího zapsaného dne - ať model neopakuje doslova stejné věty.
+      fetchPriorDayComments(admin, dayRes.data.user_id, dayRes.data.date, 1),
     ]);
 
     const userPrompt = buildDayContextPrompt({
