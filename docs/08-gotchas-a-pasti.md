@@ -13,6 +13,15 @@ Hromadné `.select()` / `.in()` bez stránkování se **tiše ořízne na 1000 �
 přes `src/lib/fetchAllRows.js` se stabilním `.order('id')`. Týká se `useCalorieHistory` a
 `TrainerDashboard.buildBulkSummary` (kcal součty i sken neaktivity).
 
+Druhá past téhož druhu (21. 9. 2026): přehled po hromadném okomentování se načítal **5 minut**.
+Sken neaktivity tahal všechny `diary_entries` za 14 dní × všechny klientky (desítky tisíc řádků
+po stránkách) jen kvůli tomu, zda den něco má, a `order('id')` + `.range()` nad `.in('day_id', …)`
+nutil DB procházet tabulku v pořadí PK. Pravidla: (a) existenci položek zjišťuj přes
+`diary_days … diary_entries!inner(id)` + `limit(1, { referencedTable })`, ne stahováním položek;
+(b) hromadná čtení řaď `.order('day_id').order('id')`; (c) dlouhé seznamy ID do `.in()` posílej
+po dávkách přes `fetchAllRowsIn()` (URL má limit); (d) `goal_history` přes všechny klientky je
+přes 1000 řádků – stránkovat. Chyba sestavení přehledu se zobrazí červeně v UI, ne jen v konzoli.
+
 ### 2. Historizace cílů (`goal_history`)
 `goalHistoryWriter.logGoalChange` upsertuje dnešní řádek se všemi 5 cíli a pak per-key gap-aware
 backfill: minulé dny v mezeře dostanou hodnotu, která **reálně platila** (`oldProfileSnapshot`),

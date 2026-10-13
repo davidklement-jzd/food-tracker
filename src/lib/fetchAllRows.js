@@ -24,3 +24,22 @@ export async function fetchAllRows(buildQuery, { pageSize = 1000 } = {}) {
   }
   return all;
 }
+
+// Totéž, ale seznam hodnot pro `.in()` rozdělí po `chunkSize` kusech a
+// výsledky slije. PostgREST posílá filtry v URL – u stovek UUID (typicky
+// diary_days za 14 dní × všechny klientky) URL přeroste limit brány
+// (414 Request-URI Too Large) a celý dotaz spadne. `buildQuery(idsChunk)`
+// dostane vždy jen jednu dávku.
+//
+//   const rows = await fetchAllRowsIn(dayIds, (ids) =>
+//     supabase.from('diary_entries').select('day_id, kcal')
+//       .in('day_id', ids).order('id', { ascending: true }));
+export async function fetchAllRowsIn(values, buildQuery, { chunkSize = 100, pageSize = 1000 } = {}) {
+  if (!values?.length) return [];
+  const chunks = [];
+  for (let i = 0; i < values.length; i += chunkSize) chunks.push(values.slice(i, i + chunkSize));
+  const parts = await Promise.all(
+    chunks.map((ids) => fetchAllRows(() => buildQuery(ids), { pageSize })),
+  );
+  return parts.flat();
+}

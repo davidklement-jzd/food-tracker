@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useClientList, setClientStatus } from '../hooks/useTrainerData';
 import { getGoalForDate } from '../hooks/useGoalHistory';
 import { supabase } from '../lib/supabase';
-import { fetchAllRows } from '../lib/fetchAllRows';
+import { fetchAllRows, fetchAllRowsIn } from '../lib/fetchAllRows';
 import { useAuth } from '../contexts/AuthContext';
 
 // Barvy kalorického kruhu (musí sedět s DailySummary).
@@ -23,29 +23,31 @@ async function buildBulkSummary(clientObjs, dates) {
   const keyOf = (u, d) => `${u}|${d}`;
 
   // 1) diary_days pro všechny klientky a dny
-  const { data: days } = await supabase
+  const { data: days, error: daysErr } = await supabase
     .from('diary_days')
     .select('id, user_id, date')
     .in('user_id', ids)
     .in('date', dates);
+  if (daysErr) throw daysErr;
   const dayRows = days || [];
   const dayIds = dayRows.map((d) => d.id);
   const dayIdByKey = new Map(dayRows.map((d) => [keyOf(d.user_id, d.date), d.id]));
 
   // 2) kalorie z entries + 3) poznámky — pro všechny day_id najednou.
-  // Stránkujeme (fetchAllRows), protože přes všechny klientky × dny snadno
+  // Stránkujeme (fetchAllRowsIn), protože přes všechny klientky × dny snadno
   // přeteče limit ~1000 řádků a nejnovější položky by se tiše ořízly.
+  // Seznam day_id posíláme po dávkách (fetchAllRowsIn), aby URL nepřerostla
+  // limit brány – u desítek klientek × dní jinak spadne celý přehled.
+  // Řadíme podle (day_id, id), ne jen podle id: řazení podle PK sváděl
+  // plánovač k průchodu celé tabulky v pořadí indexu a každá stránka trvala
+  // dlouhé sekundy – přehled se pak „načítal" i minuty.
   const [entries, notes] = await Promise.all([
-    dayIds.length
-      ? fetchAllRows(() =>
-          supabase.from('diary_entries').select('day_id, kcal')
-            .in('day_id', dayIds).order('id', { ascending: true }))
-      : Promise.resolve([]),
-    dayIds.length
-      ? fetchAllRows(() =>
-          supabase.from('meal_notes').select('day_id, note_text')
-            .in('day_id', dayIds).order('id', { ascending: true }))
-      : Promise.resolve([]),
+    fetchAllRowsIn(dayIds, (chunk) =>
+      supabase.from('diary_entries').select('day_id, kcal')
+        .in('day_id', chunk).order('day_id').order('id')),
+    fetchAllRowsIn(dayIds, (chunk) =>
+      supabase.from('meal_notes').select('day_id, note_text')
+        .in('day_id', chunk).order('day_id').order('id')),
   ]);
   const kcalByDay = new Map();
   const hasEntryByDay = new Set();
@@ -69,14 +71,17 @@ async function buildBulkSummary(clientObjs, dates) {
     .in('date', dates);
   const weightByKey = new Map((weights || []).map((w) => [keyOf(w.user_id, w.date), w.weight]));
 
-  // 5) goal_history (kcal) pro historizovaný cíl daného dne
-  const { data: gh } = await supabase
-    .from('goal_history')
-    .select('user_id, date, goal_kcal')
-    .in('user_id', ids)
-    .order('date', { ascending: true });
+  // 5) goal_history (kcal) pro historizovaný cíl daného dne. Po dávkách a se
+  //    stránkováním: přes všechny klientky je historie dávno přes 1000 řádků
+  //    a bez toho by se cíle novějších klientek tiše ořízly. Stačí záznamy do
+  //    posledního komentovaného dne (getGoalForDate kouká jen zpět).
+  const maxDate = dates[dates.length - 1];
+  const gh = await fetchAllRowsIn(ids, (chunk) =>
+    supabase.from('goal_history').select('user_id, date, goal_kcal')
+      .in('user_id', chunk).lte('date', maxDate)
+      .order('date', { ascending: true }).order('id'));
   const histByUser = new Map();
-  for (const r of gh || []) {
+  for (const r of gh) {
     if (!histByUser.has(r.user_id)) histByUser.set(r.user_id, []);
     histByUser.get(r.user_id).push({ date: r.date, goal_kcal: r.goal_kcal });
   }
@@ -86,26 +91,23 @@ async function buildBulkSummary(clientObjs, dates) {
   //    starší nebo žádný záznam = sentinel 15 → v UI "14+".
   const today = toDateStr(new Date());
   const cutoff = dateNDaysAgoStr(14);
-  const [recentDaysRes, recentWeightsRes] = await Promise.all([
-    supabase.from('diary_days').select('id, user_id, date')
-      .in('user_id', ids).gte('date', cutoff).lte('date', today),
+  //    Dřív se sem tahaly VŠECHNY položky jídel za 14 dní × všechny klientky
+  //    (desítky tisíc řádků po stránkách) jen kvůli tomu, zda den něco má.
+  //    To rostlo s daty a nakonec trvalo minuty. Teď: diary_days s vnitřním
+  //    spojením na diary_entries a limitem 1 na den – vrátí jen dny, které
+  //    mají aspoň jednu položku, a přenese ~1 řádek na den.
+  const [recentDaysWithFood, recentWeightsRes] = await Promise.all([
+    fetchAllRows(() =>
+      supabase.from('diary_days').select('id, user_id, date, diary_entries!inner(id)')
+        .in('user_id', ids).gte('date', cutoff).lte('date', today)
+        .limit(1, { referencedTable: 'diary_entries' })
+        .order('id', { ascending: true })),
     supabase.from('weight_entries').select('user_id, date')
       .in('user_id', ids).gte('date', cutoff).lte('date', today),
   ]);
-  const recentDayRows = recentDaysRes.data || [];
-  const recentDayIds = recentDayRows.map((d) => d.id);
-  // Stránkujeme: 14 dní × všechny klientky snadno přeteče 1000 řádků a oříznutí
-  // by zahodilo nejnovější zápisy → aktivní klientka by se jevila jako neaktivní.
-  const recentEntries = recentDayIds.length
-    ? await fetchAllRows(() =>
-        supabase.from('diary_entries').select('day_id')
-          .in('day_id', recentDayIds).order('id', { ascending: true }))
-    : [];
-  const dayIdsWithEntries = new Set(recentEntries.map((e) => e.day_id));
 
   const lastFoodByUser = new Map();
-  for (const d of recentDayRows) {
-    if (!dayIdsWithEntries.has(d.id)) continue; // prázdný den se nepočítá jako zápis
+  for (const d of recentDaysWithFood) {
     const prev = lastFoodByUser.get(d.user_id);
     if (!prev || d.date > prev) lastFoodByUser.set(d.user_id, d.date);
   }
@@ -231,6 +233,7 @@ export default function TrainerDashboard({ onSelectClient }) {
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
   const [bulkResult, setBulkResult] = useState(null);
   const [bulkSummary, setBulkSummary] = useState(null); // pole řádků přehledu po dokončení
+  const [bulkSummaryError, setBulkSummaryError] = useState(null); // text chyby, když se přehled nepovede sestavit
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageText, setMessageText] = useState('');
   const [messageSending, setMessageSending] = useState(false);
@@ -247,6 +250,7 @@ export default function TrainerDashboard({ onSelectClient }) {
     setSelectedIds(new Set());
     setBulkResult(null);
     setBulkSummary(null);
+    setBulkSummaryError(null);
   }, [activeTab]);
 
   async function archiveClient(client, e) {
@@ -438,6 +442,7 @@ export default function TrainerDashboard({ onSelectClient }) {
     setBulkLoading(true);
     setBulkResult(null);
     setBulkSummary(null);
+    setBulkSummaryError(null);
     setBulkProgress({ current: 0, total });
 
     let totalGenerated = 0;
@@ -478,7 +483,10 @@ export default function TrainerDashboard({ onSelectClient }) {
         const summary = await buildBulkSummary(clientObjs, dates);
         setBulkSummary(summary);
       } catch (sumErr) {
+        // Komentáře už jsou hotové – chybu přehledu jen ukážeme, ať není
+        // nikdy „ticho" (dřív šla pouze do konzole a přehled prostě chyběl).
         console.error('Summary build error:', sumErr);
+        setBulkSummaryError(sumErr?.message || String(sumErr));
       }
     } catch (err) {
       console.error('Bulk comment error:', err);
@@ -664,6 +672,13 @@ export default function TrainerDashboard({ onSelectClient }) {
               </ul>
             </div>
           )}
+        </div>
+      )}
+
+      {bulkSummaryError && (
+        <div className="trainer-bulk-result error">
+          Přehled okomentovaných klientek se nepodařilo sestavit (komentáře jsou
+          uložené): {bulkSummaryError}
         </div>
       )}
 

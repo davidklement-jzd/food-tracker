@@ -32,7 +32,10 @@ export function useCalorieHistory(userId) {
         .from('diary_entries')
         .select('day_id, kcal')
         .in('day_id', dayIds)
-        .order('id', { ascending: true }),
+        // (day_id, id) místo jen id – řazení podle PK vedlo k pomalému
+        // průchodu tabulky v pořadí indexu (viz docs/08).
+        .order('day_id')
+        .order('id'),
     );
 
     // Sum kcal per day
