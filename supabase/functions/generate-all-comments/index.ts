@@ -4,6 +4,7 @@ import {
   COMMENTABLE_MEAL_ORDER,
   corsHeadersFor,
   enforceAiDailyLimit,
+  fetchClientAiNote,
   fetchPriorDayComments,
   generateAndSaveComment,
   jsonResponse,
@@ -113,6 +114,18 @@ Deno.serve(async (req) => {
         if (c.comment_text) commentsMap[c.meal_id] = c.comment_text;
       }
 
+      // Trvalá poznámka trenéra. Když se nenačte, tuhle klientku přeskočíme: bez
+      // poznámky by komentáře mohly porušit, co se jí psát nesmí. Ostatní běží dál.
+      let clientAiNote = "";
+      try {
+        clientAiNote = await fetchClientAiNote(admin, client.id);
+      } catch (err) {
+        console.error(`Client AI note failed for client ${client.id}:`, err);
+        failed++;
+        if (!firstError) firstError = { status: 0, body: `note: ${String(err)}`.slice(0, 300) };
+        continue;
+      }
+
       // Cíle pro daný DEN — historizovaně z goal_history; fallback profile.
       // + komentáře z předchozího zapsaného dne (jednou na klientku, platí pro všechna jídla).
       const [historyGoals, priorComments] = await Promise.all([
@@ -151,6 +164,7 @@ Deno.serve(async (req) => {
           currentMealId: mealId,
           currentMealNote: notesMap[mealId] || "",
           priorComments,
+          clientAiNote,
         });
 
         const result = await generateAndSaveComment({

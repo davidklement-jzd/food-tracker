@@ -119,6 +119,14 @@ Při chybě dotazu **radši pustí** (fail-open). Hromadné komentování kontro
 `styleGuide.ts` vynucuje vykání a mužský rod 1. osoby (trenér je muž), „přepis" max 1× denně,
 zakázaná slova. Když měníš prompt, tyhle invarianty zachovej — jinak komentáře znějí špatně.
 
+### 21. Poznámka trenéra pro AI (`client_ai_notes`) nesmí uniknout klientce
+Neukládej ji do `profiles` (klientka čte svůj řádek přes `select('*')`). V promptu je až na konci
+a má přednost před obecnými pravidly; `stripDeliberation` navíc vyhazuje věty se slovy
+„pokyn…"/„instrukc…". Když se nenačte, komentář se **negeneruje** (na rozdíl od kontextu z
+minulých dnů): poznámka může říkat, co se té klientce psát nesmí. Hromadný běh přeskočí jen danou
+klientku. Důsledek pro deploy: **nejdřív migrace 032, až pak edge funkce**, jinak všechno AI
+komentování spadne na chybějící tabulce.
+
 ---
 
 ## Tón textů (napříč appkou)

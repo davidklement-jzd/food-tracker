@@ -4,6 +4,7 @@ import {
   buildDayContextPrompt,
   corsHeadersFor,
   enforceAiDailyLimit,
+  fetchClientAiNote,
   fetchPriorDayComments,
   generateAndSaveComment,
   isUuid,
@@ -96,10 +97,12 @@ Deno.serve(async (req) => {
     const requestGoals = (client_goals && typeof client_goals === "object")
       ? client_goals as Record<string, unknown>
       : {};
-    const [historyGoals, priorComments] = await Promise.all([
+    const [historyGoals, priorComments, clientAiNote] = await Promise.all([
       resolveGoalsForDate(admin, dayRes.data.user_id, dayRes.data.date),
       // Komentáře z předchozího zapsaného dne - ať model neopakuje doslova stejné věty.
       fetchPriorDayComments(admin, dayRes.data.user_id, dayRes.data.date, 1),
+      // Selhání načtení spadne do catch níž: bez poznámky se komentář negeneruje.
+      fetchClientAiNote(admin, dayRes.data.user_id),
     ]);
 
     const userPrompt = buildDayContextPrompt({
@@ -114,6 +117,7 @@ Deno.serve(async (req) => {
       currentMealId: meal_id,
       currentMealNote: typeof noteRes.data?.note_text === "string" ? noteRes.data.note_text : "",
       priorComments,
+      clientAiNote,
     });
 
     const result = await generateAndSaveComment({

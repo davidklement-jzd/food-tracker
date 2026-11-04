@@ -82,6 +82,8 @@ Při dosažení vrací 429. Při chybě dotazu **fail-open** (raději pustí ne�
   zapsaného dne před `date`** (do 2026-09-14 to byly 2 dny) → do promptu jako blok „Vaše komentáře této klientce z předchozího dne" + zákaz
   opakovat doslova stejnou větu/hlášku/radu. Jen texty, jídla těch dnů model nevidí. Max 12 komentářů,
   každý oříznut na 220 znaků (~300 tokenů navíc na komentář). Chyba dotazu → prázdné pole, generování běží dál.
+  Od migrace 032 navíc `fetchClientAiNote`: trvalá poznámka trenéra ke klientce → blok „INDIVIDUÁLNÍ POKYNY
+  TRENÉRA" na konci promptu. Chyba dotazu → komentář se **negeneruje** (hromadně se přeskočí jen ta klientka).
 - **Zapisuje:** upsert `trainer_comments` (`author:'ai'`, `onConflict day_id,meal_id`) + insert
   `ai_comment_log` (i při selhání). Vrací `{comment, id, tokens}` nebo 502.
 - **Env:** `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,

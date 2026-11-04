@@ -20,6 +20,7 @@ import WeightTracker from './WeightTracker';
 import SettingsPage from './SettingsPage';
 import AnalysisPage from './AnalysisPage';
 import TrainerComment from './TrainerComment';
+import ClientAiNote from './ClientAiNote';
 
 const MEALS = [
   { id: 'breakfast', label: 'Snídaně' },
@@ -223,6 +224,8 @@ export default function TrainerClientDiary({ client, onBack }) {
           <WeeklySummary summary={weeklySummary} onClose={() => setWeeklyOpen(false)} />
         </div>
       )}
+
+      <ClientAiNote key={clientProfile.id} clientId={clientProfile.id} />
 
       <div className="date-nav">
         <button onClick={() => changeDate(-1)} className="date-btn">

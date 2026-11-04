@@ -4181,3 +4181,83 @@ html, body {
   color: #888;
   line-height: 1.35;
 }
+
+/* ===== POZNÁMKA PRO AI (jen trenér) ===== */
+.client-ai-note {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px solid #f0d9a8;
+  border-radius: 10px;
+  background: #fff9ec;
+}
+
+.client-ai-note-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--text-13);
+  font-weight: 600;
+  color: #7a5b16;
+}
+
+.client-ai-note-text {
+  margin-top: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: var(--text-14);
+  line-height: 1.4;
+  color: #333;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.client-ai-note-meta {
+  margin-top: 6px;
+  font-size: var(--text-12);
+  color: #a08a5a;
+}
+
+.client-ai-note-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: var(--text-13);
+  font-family: inherit;
+  color: #7a5b16;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.client-ai-note-add {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  padding: 8px 12px;
+  border: 1px dashed #d9c48f;
+  border-radius: 10px;
+  background: none;
+  font-size: var(--text-13);
+  font-family: inherit;
+  color: #7a5b16;
+  text-align: left;
+  cursor: pointer;
+}
+
+.client-ai-note-add:hover {
+  background: #fff9ec;
+}
+
+.client-ai-note textarea {
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid #d9c48f;
+  border-radius: 10px;
+  background: #fff;
+  font-size: var(--text-14);
+  font-family: inherit;
+  line-height: 1.4;
+  resize: vertical;
+  outline: none;
+}

@@ -108,6 +108,7 @@ Zobrazí se v `recoveryMode`. Validace ≥6 znaků + shoda, `updatePassword`, pa
 | `TrainerComment` | Trenérský editor komentáře per jídlo (psát / generovat AI / editovat / smazat), 250 znaků. |
 | `TrainerDashboard` | Trenérský home: seznam klientek, hromadné AI komentáře, invites, vzkazy, mazání. |
 | `TrainerClientDiary` | Trenér prohlíží/edituje deník klientky + komentáře. |
+| `ClientAiNote` | Trvalá poznámka trenéra ke klientce pro AI (`client_ai_notes`), v `TrainerClientDiary` nad navigací data. Prázdné uložení ji smaže. Při chybě načtení nenabízí editor, aby se nepřepsala existující poznámka. |
 | `AnalysisPage` | Chart.js grafy váhy + kalorií (sdílené klient/trenér). |
 | `SettingsPage` | Profil + denní cíle (self nebo trenér-edituje-klientku). |
 | `FoodsDatabasePage` | Sdílená DB potravin: procházení/tvorba/edit/schvalování + review návrhů porcí. |
@@ -188,7 +189,7 @@ starého profilu → `updateProfile` (self) nebo přímý update + `logGoalChang
 ## Mapa volání frontend → backend
 
 **Tabulky (`supabase.from`)**: `profiles`, `diary_days`, `diary_entries`, `meal_notes`,
-`trainer_comments`, `activity_entries`, `weight_entries`, `goal_history`, `meal_templates`,
+`trainer_comments`, `client_ai_notes`, `activity_entries`, `weight_entries`, `goal_history`, `meal_templates`,
 `foods`, `food_portion_suggestions`, `invite_codes`, `announcements`, `announcement_recipients`
 (+ **realtime** subscribe na INSERT filtr `user_id`, kanál `announcements_{userId}`).
 

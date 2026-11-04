@@ -103,6 +103,16 @@ Komentář trenéra nebo AI k jídlu. Zápis dělá trenér/AI, čte klientka sv
 
 Index: `idx_trainer_comments_day(day_id)`. Na `unique(day_id,meal_id)` se upsertuje (`onConflict`).
 
+### `client_ai_notes` (032)
+Trvalá poznámka trenéra ke klientce pro AI komentování. **Klientka ji nikdy nesmí vidět**, proto
+je to samostatná tabulka, ne sloupec v `profiles` (ten si klientka čte přes `select('*')`).
+
+| Sloupec | Typ | Poznámka |
+|---|---|---|
+| `client_id` | uuid | PK, FK `profiles(id) on delete cascade` |
+| `note_text` | text | not null, 1–2000 znaků (prázdná poznámka = smazaný řádek) |
+| `updated_at` | timestamptz | default `now()` |
+
 ### `ai_comment_log` (001)
 Audit tokenů + surová odpověď od Claude. **Zároveň slouží jako denní počítadlo rate-limitu.**
 
@@ -289,6 +299,7 @@ Formát: **kdo** může **co** a za jaké podmínky. „trenér" = `is_trainer()
 - **diary_entries** — klient SELECT přes vlastnictví rodičovského dne; INSERT/UPDATE/DELETE stejně, ale **jen kde `meal_id <> 'supplements'`** (031 — „Kalorický dluh" zapisuje a maže jen trenér; WITH CHECK u UPDATE brání i přesunu řádku do supplements); trenér SELECT/INSERT/UPDATE/DELETE.
 - **meal_notes** — klient `for all` přes den; trenér SELECT/INSERT/UPDATE/DELETE.
 - **trainer_comments** — trenér `for all`; klient SELECT kde rodičovský den patří jemu. (Zápis jen trenér/AI.)
+- **client_ai_notes** — jen trenér `for all`. Klientka nemá žádnou politiku, `anon` nemá ani grant. Edge funkce čtou přes service role (má explicitní `grant select`).
 - **ai_comment_log** — jen trenér SELECT. Zápis dělají edge funkce přes service role (obchází RLS).
 - **weight_entries** — klient SELECT/INSERT/UPDATE vlastní; trenér SELECT/INSERT/UPDATE. (DELETE nikdo.)
 - **goal_history** — klient SELECT/INSERT/UPDATE vlastní; trenér SELECT (005) + INSERT/UPDATE (024).
