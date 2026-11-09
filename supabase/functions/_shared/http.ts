@@ -465,6 +465,30 @@ function hasAlcohol(list: DayEntry[]): boolean {
   });
 }
 
+// Pojistka „nedopsaný den". Hlavní jídlo s méně než 50 kcal (čaj, káva) se
+// nepočítá jako zapsané. Bez večeře bereme den jako nedopsaný už pod 80 %,
+// bez oběda (ale s večeří) až pod 60 %: den s večeří vypadá uzavřeně a oběd
+// mohla klientka opravdu vynechat. Vynechaná snídaně nebo svačiny nedopsaný
+// den neznamenají. Komentuje se jen u posledního zapsaného jídla, ať to za
+// den zazní jednou i při přegenerování jednotlivého jídla.
+const MAIN_MEAL_MIN_KCAL = 50;
+
+function detectIncompleteDay(
+  byMeal: Record<string, DayEntry[]>,
+  kcalPct: number,
+): { missing: string[]; lastMealId: string } | null {
+  const isWritten = (mealId: string) =>
+    (byMeal[mealId] || []).reduce((acc, e) => acc + safeNumber(e.kcal), 0) >= MAIN_MEAL_MIN_KCAL;
+  const noLunch = !isWritten("lunch");
+  const noDinner = !isWritten("dinner");
+  if (!((noDinner && kcalPct < 80) || (noLunch && kcalPct < 60))) return null;
+
+  const lastMealId = [...COMMENTABLE_MEAL_ORDER].reverse().find((m) => byMeal[m]?.length);
+  if (!lastMealId) return null;
+  const missing = [noLunch && "oběd", noDinner && "večeře"].filter(Boolean) as string[];
+  return { missing, lastMealId };
+}
+
 // Builds the user prompt for generating a comment about a specific meal,
 // with full-day context and previously written comments so the AI doesn't
 // repeat itself and can reference earlier meals.
@@ -693,6 +717,19 @@ export function buildDayContextPrompt(input: BuildDayContextInput): string {
       : `bílkoviny za den nedošly (${proteinPct} % cíle, pochvala alkoholu vyžaduje 100 % a víc)`;
     sections.push(
       `⚠️ POZOR: V tomto jídle je alkohol a ${duvod}. Alkohol proto NECHVÁLIT a NEPREZENTOVAT jako odměnu — zakázané formulace: „vlezlo se", „vešlo se", „v pohodě", „za odměnu", „zasloužená", „na místě", „užijte si", „příjemný večer". Zároveň žádné kázání ani moralizování, alkohol není terč: buď ho zmiň věcně, nebo o něm nepiš vůbec a zhodnoť zbytek jídla.`,
+    );
+    sections.push("");
+  }
+
+  // Nedopsaný den: denní součty jsou neúplné, takže „tělo potřebuje energii"
+  // nebo „bílkoviny nedošly" by klientce tvrdily něco, co z dat neplyne.
+  const incomplete = detectIncompleteDay(byMeal, kcalPct);
+  if (incomplete) {
+    const instruction = incomplete.lastMealId === currentMealId
+      ? `Zhodnoťte toto jídlo a přidejte jednu krátkou větu, že den je pravděpodobně nedopsaný. Věcně, bez výčitky a bez prosby o doplnění. Vlastními slovy, například: „Zbytek dne tu nevidím, den bude pravděpodobně nedopsaný." / „Večeře tu chybí, takže den je zřejmě nedopsaný."`
+      : `Hodnoťte jen toto jídlo a o nedopsaném dni nepište, to zazní u posledního zapsaného jídla.`;
+    sections.push(
+      `⚠️ POZOR: Den je pravděpodobně NEDOPSANÝ (nezapsáno: ${incomplete.missing.join(", ")}; kalorie ${kcalPct} % cíle). Denní součty proto nejsou spolehlivé a den jako celek nehodnoťte - žádné „tělo potřebuje energii", „je toho dnes málo", „bílkoviny za den nedošly", „zelenina za den chybí". ${instruction}`,
     );
     sections.push("");
   }
